@@ -104,8 +104,10 @@ class TelegramBot:
                 id="news_guard_scan",
                 replace_existing=True,
             )
+            if not self._scheduler.running:
+                self._scheduler.start()
             logger.info(
-                f"🛡️ NewsGuard scheduler registered | "
+                f"🛡️ NewsGuard scheduler started | "
                 f"Interval: {NewsGuard.CHECK_INTERVAL_MINUTES}min"
             )
         except Exception as e:
@@ -139,6 +141,10 @@ class TelegramBot:
             if not active_users:
                 return
 
+            if not self.analyzer or not self.executor:
+                logger.warning("Auto-trade skipped: analyzer or executor not initialized")
+                return
+
             logger.info(f"🤖 Auto-trade scan: {len(active_users)} active users")
             for user_id in active_users:
                 try:
@@ -156,6 +162,8 @@ class TelegramBot:
                     if result.get("error") or result.get("should_stop"):
                         if result.get("should_stop"):
                             self.auto_trading[user_id] = False
+                            if self.risk:
+                                self.risk.pause_trading(user_id)
                             await self.notifications.send_alert(
                                 user_id, "warning",
                                 f"🚨 Auto-trading paused: {result.get('reasoning', 'API quota exceeded')}"
@@ -985,7 +993,10 @@ class TelegramBot:
             return
 
         self.auto_trading[user_id] = True
-        if self.risk:
+        # Do NOT blindly resume trading — if risk paused the user (daily loss / panic),
+        # can_open_trade in the next cycle will block appropriately.
+        # Only resume if we know it was a manual pause, not a system pause.
+        if self.risk and self.risk.trading_paused.get(user_id) and not self.risk.panic_mode.get(user_id):
             self.risk.resume_trading(user_id)
 
         await query.answer("✅ Auto trading started")

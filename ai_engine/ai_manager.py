@@ -143,11 +143,17 @@ class OpenAIClient(BaseAIClient):
 
     def __init__(self, api_key: str, model: str = None):
         super().__init__(api_key, model or "gpt-4o-mini")
-        from openai import OpenAI
-        self.client = OpenAI(api_key=api_key)
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(api_key=api_key)
+        except ImportError:
+            self.client = None
+            logger.warning("openai package not installed. OpenAI unavailable.")
         logger.info(f"OpenAI client initialized | Model: {self.model}")
 
     def analyze(self, symbol, timeframe, market_data, news_context=None):
+        if not self.client:
+            return self._error_result("OpenAI SDK not installed")
         prompt = self._build_prompt(symbol, timeframe, market_data, news_context)
         try:
             response = self.client.chat.completions.create(
@@ -324,11 +330,17 @@ class DeepSeekClientV2(BaseAIClient):
 
     def __init__(self, api_key: str, model: str = None):
         super().__init__(api_key, model or "deepseek-chat")
-        from openai import OpenAI
-        self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com/v1")
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com/v1")
+        except ImportError:
+            self.client = None
+            logger.warning("openai package not installed. DeepSeek unavailable.")
         logger.info(f"DeepSeek client initialized | Model: {self.model}")
 
     def analyze(self, symbol, timeframe, market_data, news_context=None):
+        if not self.client:
+            return self._error_result("OpenAI SDK not installed (required for DeepSeek)")
         prompt = (
             f"Analyze {symbol} on {timeframe}:\n"
             f"{json.dumps(market_data, indent=2)}\n"
@@ -354,6 +366,8 @@ class DeepSeekClientV2(BaseAIClient):
             return self._error_result(str(e))
 
     def test_connection(self) -> bool:
+        if not self.client:
+            return False
         try:
             self.client.chat.completions.create(
                 model=self.model,

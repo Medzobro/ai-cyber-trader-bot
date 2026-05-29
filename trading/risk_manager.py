@@ -234,7 +234,7 @@ class RiskManager:
         balance = self.mt5.get_balance() if self.mt5 else 42500.0
 
         daily_loss = self._get_daily_loss_percentage(user_id)
-        risk_level = self._calculate_risk_level(daily_loss, len(open_trades))
+        risk_level = self._calculate_risk_level(user_id, daily_loss, len(open_trades))
 
         return {
             "panic_mode": self.panic_mode.get(user_id, False),
@@ -257,10 +257,10 @@ class RiskManager:
             return 0
         return (today["total_pnl"] / balance) * 100
 
-    def _calculate_risk_level(self, daily_loss_pct: float,
+    def _calculate_risk_level(self, user_id: int, daily_loss_pct: float,
                               open_trades: int) -> str:
-        """Calculate risk level"""
-        if self.panic_mode:
+        """Calculate risk level for a specific user"""
+        if self.panic_mode.get(user_id, False):
             return "🔴 CRITICAL"
 
         if daily_loss_pct <= -3 or open_trades >= config.trading.max_open_trades:

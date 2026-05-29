@@ -28,9 +28,11 @@ class TradeExecutor:
         self.analyzer = analyzer
 
     def execute_analysis_cycle(self, user_id: int, symbol: str = None,
-                               timeframe: str = None) -> Dict:
+                               timeframe: str = None,
+                               precomputed_analysis: Dict = None) -> Dict:
         """
-        Full analysis cycle: Analyze → Predict → Execute
+        Full analysis cycle: Analyze → Predict → Execute.
+        If precomputed_analysis is provided, skips the analyzer step (avoids double API calls).
 
         Returns:
             Dict: Cycle result
@@ -61,15 +63,17 @@ class TradeExecutor:
             result["action"] = "blocked"
             return result
 
-        # 2. Market analysis
-        if self.analyzer:
+        # 2. Market analysis (skip if precomputed)
+        if precomputed_analysis:
+            market_analysis = precomputed_analysis
+        elif self.analyzer:
             market_analysis = self.analyzer.analyze(symbol, timeframe, user_id=user_id)
         else:
             result["message"] = "⚠️ Market analyzer not initialized"
             return result
 
         if market_analysis.get("error"):
-            result["message"] = market_analysis["message"]
+            result["message"] = market_analysis.get("message", "Analysis error")
             return result
 
         # 3. AI prediction
@@ -264,13 +268,23 @@ class TradeExecutor:
 
         return result
 
+    def execute_from_analysis(self, user_id: int, symbol: str,
+                                timeframe: str, analysis_result: Dict) -> Dict:
+        """
+        Execute a trade using a pre-computed analysis result (no re-analysis).
+        Called by auto-trading scheduler and analyze-now handlers to avoid double API calls.
+        """
+        return self.execute_analysis_cycle(
+            user_id, symbol, timeframe, precomputed_analysis=analysis_result
+        )
+
     def close_trade_by_id(self, trade_id: int, user_id: int) -> Dict:
         """Close a specific trade by ID"""
         db = get_db()
-        trade = db.get_open_trades(user_id)
-        trade_obj = next((t for t in trade if t.id == trade_id), None)
+        # Fetch directly by ID instead of scanning all open trades (faster + safer)
+        trade_obj = db.get_trade_by_id(trade_id, user_id)
 
-        if not trade_obj:
+        if not trade_obj or trade_obj.status != "open":
             return {"success": False, "message": f"❌ Trade #{trade_id} not found or already closed"}
 
         # Close in MT5 first

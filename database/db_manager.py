@@ -34,7 +34,7 @@ class DatabaseManager:
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
-        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False, autocommit=False)
+        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False, autocommit=False, expire_on_commit=False)
         self._create_tables()
 
     def _create_tables(self):
@@ -207,6 +207,14 @@ class DatabaseManager:
                 Trade.user_id == user_id,
                 Trade.status == "open"
             ).all()
+
+    def get_trade_by_id(self, trade_id: int, user_id: int) -> Optional[Trade]:
+        """Fetch a single trade by ID (ensures user isolation)"""
+        with self.session() as sess:
+            return sess.query(Trade).filter(
+                Trade.id == trade_id,
+                Trade.user_id == user_id,
+            ).first()
 
     def get_open_trades_count(self, user_id: int) -> int:
         """Get open trades count"""
