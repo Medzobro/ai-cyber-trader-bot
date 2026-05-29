@@ -1,7 +1,7 @@
 """
-Notification Manager - مدير الإشعارات
-======================================
-يرسل إشعارات فورية للمستخدمين عن الصفقات والأحداث
+Notification Manager - Push Notifications
+==========================================
+Sends instant notifications to users about trades and events
 """
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -14,18 +14,18 @@ logger = get_logger(__name__)
 
 
 class NotificationManager:
-    """مدير الإشعارات الفورية"""
+    """Push notification manager"""
 
     def __init__(self, bot_app=None):
         self.app = bot_app  # telegram.Application instance
         self.enabled: Dict[int, bool] = {}  # user_id -> enabled
 
     def set_app(self, app):
-        """ربط تطبيق تليجرام"""
+        """Bind Telegram application"""
         self.app = app
 
     async def send_trade_opened(self, user_id: int, trade: Dict[str, Any]):
-        """إرسال إشعار فتح صفقة"""
+        """Send trade opened notification"""
         if not self.app or not self._is_enabled(user_id):
             return
 
@@ -42,7 +42,7 @@ class NotificationManager:
             logger.error(f"❌ Failed to send notification: {e}")
 
     async def send_trade_closed(self, user_id: int, trade: Dict[str, Any]):
-        """إرسال إشعار إغلاق صفقة"""
+        """Send trade closed notification"""
         if not self.app or not self._is_enabled(user_id):
             return
 
@@ -59,7 +59,7 @@ class NotificationManager:
             logger.error(f"❌ Failed to send notification: {e}")
 
     async def send_analysis_result(self, user_id: int, result: Dict[str, Any]):
-        """إرسال نتيجة تحليل"""
+        """Send analysis result"""
         if not self.app:
             return
 
@@ -75,7 +75,7 @@ class NotificationManager:
             logger.error(f"❌ Failed to send analysis: {e}")
 
     async def send_alert(self, user_id: int, alert_type: str, message: str):
-        """إرسال تنبيه عام"""
+        """Send general alert"""
         if not self.app:
             return
 
@@ -96,7 +96,7 @@ class NotificationManager:
             logger.error(f"❌ Failed to send alert: {e}")
 
     async def broadcast_to_admins(self, message: str):
-        """إرسال رسالة لجميع المدراء"""
+        """Send message to all admins"""
         if not self.app:
             return
 
@@ -110,13 +110,13 @@ class NotificationManager:
                 logger.warning(f"Failed to send to admin {admin_id}: {e}")
 
     def enable_notifications(self, user_id: int):
-        """تفعيل الإشعارات لمستخدم"""
+        """Enable notifications for user"""
         self.enabled[user_id] = True
 
     def disable_notifications(self, user_id: int):
-        """تعطيل الإشعارات لمستخدم"""
+        """Disable notifications for user"""
         self.enabled[user_id] = False
 
     def _is_enabled(self, user_id: int) -> bool:
-        """التحقق من تفعيل الإشعارات"""
-        return self.enabled.get(user_id, True)  # مفعل افتراضياً
+        """Check if notifications are enabled"""
+        return self.enabled.get(user_id, True)  # Enabled by default

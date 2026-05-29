@@ -1,7 +1,7 @@
 """
-MT5 Bridge - جسر التواصل مع MetaTrader 5
-========================================
-يدير الاتصال مع منصة MT5 وينفذ عمليات التداول
+MT5 Bridge - MetaTrader 5 Connection Bridge
+============================================
+Manages MT5 connection and executes trading operations
 """
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime
@@ -22,7 +22,7 @@ except ImportError:
 
 
 class MT5Bridge:
-    """جسر التواصل مع MetaTrader 5"""
+    """MetaTrader 5 connection bridge"""
 
     # Timeframe mapping
     TIMEFRAMES = {
@@ -43,10 +43,10 @@ class MT5Bridge:
     def connect(self, login: int = None, password: str = None,
                 server: str = None) -> bool:
         """
-        الاتصال بحساب MT5
+        Connect to MT5 account
 
         Returns:
-            bool: نجاح الاتصال
+            bool: Connection success
         """
         login = login or config.trading.mt5_login
         password = password or config.trading.mt5_password
@@ -81,35 +81,35 @@ class MT5Bridge:
             return True  # Fallback to simulation
 
     def disconnect(self):
-        """قطع الاتصال بـ MT5"""
+        """Disconnect from MT5"""
         if self.connected and not self.simulation:
             mt5_lib.shutdown()
         self.connected = False
         logger.info("🔌 MT5 disconnected")
 
     def is_connected(self) -> bool:
-        """التحقق من حالة الاتصال"""
+        """Check connection status"""
         return self.connected
 
     def get_account_info(self) -> Dict[str, Any]:
-        """جلب معلومات الحساب"""
+        """Get account information"""
         if self.simulation:
             return self._simulate_account_info()
         return self._get_real_account_info()
 
     def get_balance(self) -> float:
-        """جلب الرصيد الحالي"""
+        """Get current balance"""
         info = self.get_account_info()
         return info.get("balance", 0.0)
 
     def get_equity(self) -> float:
-        """جلب حقوق الملكية"""
+        """Get equity"""
         info = self.get_account_info()
         return info.get("equity", 0.0)
 
     def get_tick(self, symbol: str) -> Optional[Dict]:
         """
-        جلب سعر Tick الحالي
+        Get current tick price
 
         Returns:
             Dict with 'bid', 'ask', 'spread', 'time'
@@ -135,13 +135,13 @@ class MT5Bridge:
     def get_rates(self, symbol: str, timeframe: str,
                   count: int = 100) -> Optional[List]:
         """
-        جلب الشموع (Rates)
+        Get candles (Rates)
 
         Returns:
             List of [time, open, high, low, close, tick_volume, spread, real_volume]
         """
         if self.simulation:
-            return None  # MarketAnalyzer سيستخدم المحاكاة
+            return None  # MarketAnalyzer will use simulation
 
         try:
             tf = self.TIMEFRAMES.get(timeframe, mt5_lib.TIMEFRAME_M15)
@@ -160,19 +160,19 @@ class MT5Bridge:
                     price: float = 0, sl: float = 0, tp: float = 0,
                     comment: str = "AI Cyber-Trader") -> Optional[int]:
         """
-        فتح صفقة جديدة
+        Place a new order
 
         Args:
-            symbol: رمز الأصل
-            order_type: 'buy' أو 'sell'
-            volume: حجم العقد
-            price: السعر (0 = سعر السوق)
-            sl: إيقاف الخسارة
-            tp: جني الأرباح
-            comment: تعليق
+            symbol: Asset symbol
+            order_type: 'buy' or 'sell'
+            volume: Lot size
+            price: Price (0 = market price)
+            sl: Stop loss
+            tp: Take profit
+            comment: Order comment
 
         Returns:
-            int: Ticket number أو None
+            int: Ticket number or None
         """
         if self.simulation:
             ticket = hash(f"{symbol}{datetime.utcnow().timestamp()}") % 1000000
@@ -185,7 +185,7 @@ class MT5Bridge:
                 logger.error(f"❌ Cannot place order: no tick for {symbol}")
                 return None
 
-            # تحديد نوع الأمر
+            # Determine order type
             if order_type.lower() == "buy":
                 mt5_type = mt5_lib.ORDER_TYPE_BUY
                 order_price = price or tick["ask"]
@@ -224,17 +224,17 @@ class MT5Bridge:
     def close_position(self, ticket: int, symbol: str = None,
                        volume: float = None) -> bool:
         """
-        إغلاق صفقة
+        Close a position
 
         Returns:
-            bool: نجاح الإغلاق
+            bool: Close success
         """
         if self.simulation:
             logger.info(f"🟡 [SIM] Position closed: Ticket=#{ticket}")
             return True
 
         try:
-            # جلب المركز من MT5
+            # Get position from MT5
             position = mt5_lib.positions_get(ticket=ticket)
             if not position:
                 logger.warning(f"⚠️ Position #{ticket} not found")
@@ -245,7 +245,7 @@ class MT5Bridge:
 
             tick = mt5_lib.symbol_info_tick(pos.symbol)
 
-            # تحديد نوع أمر الإغلاق
+            # Determine close order type
             if pos.type == mt5_lib.POSITION_TYPE_BUY:
                 close_type = mt5_lib.ORDER_TYPE_SELL
                 close_price = tick.bid
@@ -282,10 +282,10 @@ class MT5Bridge:
 
     def close_all_positions(self) -> int:
         """
-        إغلاق جميع الصفقات المفتوحة (زر الطوارئ)
+        Close all open positions (panic button)
 
         Returns:
-            int: عدد الصفقات المغلقة
+            int: Number of positions closed
         """
         if self.simulation:
             logger.info("🟡 [SIM] All positions closed")
@@ -309,7 +309,7 @@ class MT5Bridge:
             return 0
 
     def get_open_positions(self) -> List[Dict]:
-        """جلب الصفقات المفتوحة"""
+        """Get open positions"""
         if self.simulation:
             return self._simulate_positions()
 
@@ -342,7 +342,7 @@ class MT5Bridge:
             return []
 
     def calculate_pip_value(self, symbol: str, volume: float) -> float:
-        """حساب قيمة النقطة"""
+        """Calculate pip value"""
         if self.simulation:
             if "XAU" in symbol:
                 return volume * 10  # $10 per 0.01 lot for gold
@@ -360,7 +360,7 @@ class MT5Bridge:
     # ─── Private Helpers ──────────────────────────
 
     def _get_real_account_info(self) -> Dict:
-        """جلب معلومات الحساب الحقيقي"""
+        """Get real account info"""
         if not MT5_AVAILABLE:
             return self._simulate_account_info()
         try:
@@ -381,7 +381,7 @@ class MT5Bridge:
             return self._simulate_account_info()
 
     def _simulate_account_info(self) -> Dict:
-        """محاكاة معلومات الحساب للاختبار"""
+        """Simulate account info for testing"""
         return {
             "login": 12345678,
             "server": "ICMarkets-Demo",
@@ -394,11 +394,11 @@ class MT5Bridge:
         }
 
     def _simulate_tick(self, symbol: str) -> Dict:
-        """محاكاة سعر للاختبار"""
+        """Simulate price for testing"""
         import random
         import hashlib
 
-        # استخدام hash للرمز للحصول على سعر شبه ثابت
+        # Use symbol hash for semi-stable price
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16)
         rng = random.Random(seed + datetime.utcnow().hour * 100 + datetime.utcnow().minute)
 
@@ -427,7 +427,7 @@ class MT5Bridge:
         }
 
     def _simulate_positions(self) -> List[Dict]:
-        """محاكاة صفقات مفتوحة للاختبار"""
+        """Simulate open positions for testing"""
         import random
         rng = random.Random(42)
 
@@ -460,7 +460,7 @@ _mt5_instance: Optional[MT5Bridge] = None
 
 
 def get_mt5() -> MT5Bridge:
-    """الحصول على نسخة MT5Bridge"""
+    """Get MT5Bridge singleton instance"""
     global _mt5_instance
     if _mt5_instance is None:
         _mt5_instance = MT5Bridge()

@@ -1,5 +1,5 @@
 """
-Database Manager - مدير قاعدة البيانات
+Database Manager
 """
 import os
 from datetime import datetime, timedelta
@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 from config import config
 from utils.logger import get_logger
-from .models import (
+from database.models import (
     Base, User, Trade, Setting, AIConfigModel, DailyPerformance,
     TradeStatus, TradeDirection
 )
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 class DatabaseManager:
-    """مدير قاعدة البيانات المركزي"""
+    """Central database manager"""
 
     def __init__(self, db_path: str = None):
         db_path = db_path or config.database.path
@@ -37,13 +37,13 @@ class DatabaseManager:
         self._create_tables()
 
     def _create_tables(self):
-        """إنشاء الجداول"""
+        """Create all tables"""
         Base.metadata.create_all(bind=self.engine)
         logger.info("✅ Database tables created/verified")
 
     @contextmanager
     def session(self) -> Session:
-        """جلسة قاعدة بيانات مع إدارة تلقائية"""
+        """Database session with automatic management"""
         sess = self.SessionLocal()
         try:
             yield sess
@@ -58,7 +58,7 @@ class DatabaseManager:
 
     def get_or_create_user(self, telegram_id: int, username: str = None,
                            first_name: str = None) -> User:
-        """جلب أو إنشاء مستخدم"""
+        """Get or create a user"""
         with self.session() as sess:
             user = sess.query(User).filter(User.telegram_id == telegram_id).first()
             if not user:
@@ -69,18 +69,18 @@ class DatabaseManager:
                 )
                 sess.add(user)
                 sess.flush()
-                logger.info(f"👤 New user: {first_name} ({telegram_id})")
+                logger.info(f"New user: {first_name} ({telegram_id})")
             return user
 
     def get_user(self, telegram_id: int) -> Optional[User]:
-        """جلب مستخدم"""
+        """Get a user by telegram ID"""
         with self.session() as sess:
             return sess.query(User).filter(User.telegram_id == telegram_id).first()
 
     # ─── Settings Management ──────────────────────
 
     def get_setting(self, user_id: int, key: str, default: str = None) -> Optional[str]:
-        """جلب إعداد"""
+        """Get a setting value"""
         with self.session() as sess:
             setting = sess.query(Setting).filter(
                 Setting.user_id == user_id,
@@ -89,7 +89,7 @@ class DatabaseManager:
             return setting.value if setting else default
 
     def set_setting(self, user_id: int, key: str, value: str):
-        """حفظ إعداد"""
+        """Save a setting"""
         with self.session() as sess:
             setting = sess.query(Setting).filter(
                 Setting.user_id == user_id,
@@ -101,10 +101,10 @@ class DatabaseManager:
             else:
                 setting = Setting(user_id=user_id, key=key, value=value)
                 sess.add(setting)
-            logger.debug(f"⚙️ Setting: {key} = {value} for user {user_id}")
+            logger.debug(f"Setting: {key} = {value} for user {user_id}")
 
     def get_all_settings(self, user_id: int) -> Dict[str, str]:
-        """جلب كل الإعدادات"""
+        """Get all settings for a user"""
         with self.session() as sess:
             settings = sess.query(Setting).filter(
                 Setting.user_id == user_id
@@ -114,7 +114,7 @@ class DatabaseManager:
     # ─── AI Config Management ─────────────────────
 
     def get_ai_config(self, user_id: int) -> AIConfigModel:
-        """جلب إعدادات الذكاء الاصطناعي"""
+        """Get AI configuration"""
         with self.session() as sess:
             ai_cfg = sess.query(AIConfigModel).filter(
                 AIConfigModel.user_id == user_id
@@ -126,7 +126,7 @@ class DatabaseManager:
             return ai_cfg
 
     def update_ai_config(self, user_id: int, **kwargs):
-        """تحديث إعدادات الذكاء الاصطناعي"""
+        """Update AI configuration"""
         with self.session() as sess:
             ai_cfg = sess.query(AIConfigModel).filter(
                 AIConfigModel.user_id == user_id
@@ -139,7 +139,7 @@ class DatabaseManager:
                     if hasattr(ai_cfg, key):
                         setattr(ai_cfg, key, value)
                 ai_cfg.updated_at = datetime.utcnow()
-            logger.info(f"🤖 AI config updated for user {user_id}")
+            logger.info(f"AI config updated for user {user_id}")
 
     # ─── Trade Management ─────────────────────────
 
@@ -148,7 +148,7 @@ class DatabaseManager:
                      take_profit: float = None, ticket: int = None,
                      ai_confidence: float = None,
                      ai_reasoning: str = None) -> Trade:
-        """إنشاء صفقة جديدة"""
+        """Create a new trade"""
         with self.session() as sess:
             trade = Trade(
                 user_id=user_id,
@@ -165,13 +165,13 @@ class DatabaseManager:
             )
             sess.add(trade)
             sess.flush()
-            logger.info(f"📊 New trade: {symbol} {direction} @ {open_price}")
+            logger.info(f"New trade: {symbol} {direction} @ {open_price}")
             return trade
 
     def close_trade(self, trade_id: int, close_price: float,
                     pnl: float = 0.0, pnl_percentage: float = 0.0,
                     commission: float = 0.0, swap: float = 0.0):
-        """إغلاق صفقة"""
+        """Close a trade"""
         with self.session() as sess:
             trade = sess.query(Trade).filter(Trade.id == trade_id).first()
             if trade:
@@ -182,10 +182,10 @@ class DatabaseManager:
                 trade.swap = swap
                 trade.status = "closed"
                 trade.closed_at = datetime.utcnow()
-                logger.info(f"📊 Trade #{trade_id} closed: PnL={pnl}")
+                logger.info(f"Trade #{trade_id} closed: PnL={pnl}")
 
     def get_open_trades(self, user_id: int) -> List[Trade]:
-        """جلب الصفقات المفتوحة"""
+        """Get open trades"""
         with self.session() as sess:
             return sess.query(Trade).filter(
                 Trade.user_id == user_id,
@@ -193,7 +193,7 @@ class DatabaseManager:
             ).all()
 
     def get_open_trades_count(self, user_id: int) -> int:
-        """عدد الصفقات المفتوحة"""
+        """Get open trades count"""
         with self.session() as sess:
             return sess.query(Trade).filter(
                 Trade.user_id == user_id,
@@ -201,7 +201,7 @@ class DatabaseManager:
             ).count()
 
     def get_trades_today(self, user_id: int) -> List[Trade]:
-        """جلب صفقات اليوم"""
+        """Get today's trades"""
         today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         with self.session() as sess:
             return sess.query(Trade).filter(
@@ -212,7 +212,7 @@ class DatabaseManager:
     # ─── Performance ──────────────────────────────
 
     def get_today_performance(self, user_id: int) -> Dict[str, Any]:
-        """حساب أداء اليوم"""
+        """Calculate today's performance"""
         with self.session() as sess:
             today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
             trades = sess.query(Trade).filter(
@@ -235,7 +235,7 @@ class DatabaseManager:
             }
 
     def get_all_time_performance(self, user_id: int) -> Dict[str, Any]:
-        """حساب الأداء الكلي"""
+        """Calculate all-time performance"""
         with self.session() as sess:
             result = sess.query(
                 func.count(Trade.id).label("total"),
@@ -266,7 +266,7 @@ _db_instance: Optional[DatabaseManager] = None
 
 
 def get_db() -> DatabaseManager:
-    """الحصول على نسخة قاعدة البيانات"""
+    """Get the database singleton instance"""
     global _db_instance
     if _db_instance is None:
         _db_instance = DatabaseManager()

@@ -1,7 +1,7 @@
 """
-Messages - نصوص الرسائل والقوالب
-==================================
-جميع قوالب النصوص المستخدمة في البوت
+Messages - Message Templates
+==============================
+All text templates used in the bot
 """
 from typing import Dict, Any
 from datetime import datetime
@@ -11,69 +11,69 @@ from utils.helpers import format_currency, format_percentage
 
 
 class Messages:
-    """قوالب الرسائل"""
+    """Message templates"""
 
     # ─── Welcome / Start ──────────────────────────
 
     @staticmethod
-    def welcome(first_name: str = "المتداول") -> str:
-        """رسالة الترحيب"""
+    def welcome(first_name: str = "Trader") -> str:
+        """Welcome message"""
         return (
-            f"👋 أهلاً بك يا {first_name} في\n"
-            f"🤖 نظام التداول الذكي | AI Cyber-Trader\n\n"
-            f"🚀 أنا بوت تداول آلي متكامل يعمل بالذكاء الاصطناعي "
-            f"(DeepSeek AI) لتحليل الأسواق واتخاذ قرارات التداول "
-            f"على منصة MetaTrader 5.\n\n"
-            f"📌 استخدم الأزرار أدناه للتحكم الكامل بالبوت."
+            f"👋 Welcome, {first_name}, to\n"
+            f"🤖 AI Cyber-Trader | Intelligent Trading System\n\n"
+            f"🚀 I'm a fully automated trading bot powered by "
+            f"DeepSeek AI for market analysis and trade execution "
+            f"on MetaTrader 5.\n\n"
+            f"📌 Use the buttons below to control the bot."
         )
 
     @staticmethod
     def start_guide() -> str:
-        """دليل البدء السريع"""
+        """Quick start guide"""
         return (
-            "📖 **دليل البدء السريع:**\n\n"
-            "1️⃣ اذهب إلى ⚙️ إعدادات الصفقات واختر الأصل وحجم اللوت\n"
-            "2️⃣ اذهب إلى 🤖 إعدادات الذكاء الاصطناعي واضبط الاستراتيجية\n"
-            "3️⃣ اضغط 🚀 تشغيل التداول الآلي لبدء التحليل والتنفيذ\n"
-            "4️⃣ راقب الصفقات من 📈 تقارير الأداء\n\n"
-            "⚠️ تأكد من إدخال API Key الخاص بـ DeepSeek في ملف `.env`"
+            "📖 **Quick Start Guide:**\n\n"
+            "1️⃣ Go to ⚙️ Trade Setup to choose asset and lot size\n"
+            "2️⃣ Go to 🤖 AI Settings to configure your strategy\n"
+            "3️⃣ Press 🚀 Start Auto Trading to begin analysis & execution\n"
+            "4️⃣ Monitor trades from 📈 Performance Reports\n\n"
+            "⚠️ Make sure to set your DeepSeek API Key in the `.env` file"
         )
 
     # ─── Dashboard ────────────────────────────────
 
     @staticmethod
-    def dashboard(bot_status: str = "🟢 يعمل الآن (ONLINE)",
+    def dashboard(bot_status: str = "🟢 ONLINE",
                   account: str = "MT5 - Demo",
                   balance: float = 42500.0,
                   daily_pnl: float = 0.0,
                   symbol: str = "XAUUSD",
                   auto_running: bool = False,
                   open_trades: int = 0) -> str:
-        """لوحة التحكم الرئيسية"""
+        """Main dashboard"""
 
-        # اسم الأصل
+        # Asset name
         symbol_name = config.symbols.get(symbol, symbol)
 
-        # حالة التداول الآلي
-        auto_status = "🟢 مفعل" if auto_running else "🔴 متوقف"
+        # Auto trading status
+        auto_status = "🟢 Active" if auto_running else "🔴 Stopped"
 
-        # تنسيق الأرباح
+        # Format profit/loss
         pnl_formatted = format_currency(daily_pnl)
         pnl_pct = (daily_pnl / balance * 100) if balance > 0 else 0
         pnl_pct_formatted = format_percentage(pnl_pct)
 
         return (
             "══════════════════════\n"
-            "🤖 **نظام التداول الذكي | AI Cyber-Trader**\n"
+            "🤖 **AI Cyber-Trader | Intelligent Trading**\n"
             "══════════════════════\n\n"
-            f"🔹 **حالة البوت:** {bot_status}\n"
-            f"🔹 **التداول الآلي:** {auto_status}\n"
-            f"🔹 **الحساب المتصل:** {account}\n"
-            f"🔹 **الرصيد الحالي:** {format_currency(balance)}\n"
-            f"🔹 **أرباح اليوم:** {pnl_formatted} ({pnl_pct_formatted})\n"
-            f"🔹 **الأصل المختار:** {symbol_name} ({symbol})\n"
-            f"🔹 **صفقات مفتوحة:** {open_trades}\n\n"
-            "📊 استخدم الأزرار أدناه للتحكم"
+            f"🔹 **Bot Status:** {bot_status}\n"
+            f"🔹 **Auto Trading:** {auto_status}\n"
+            f"🔹 **Account:** {account}\n"
+            f"🔹 **Balance:** {format_currency(balance)}\n"
+            f"🔹 **Today's P&L:** {pnl_formatted} ({pnl_pct_formatted})\n"
+            f"🔹 **Selected Asset:** {symbol_name} ({symbol})\n"
+            f"🔹 **Open Positions:** {open_trades}\n\n"
+            "📊 Use the buttons below to control the bot"
         )
 
     # ─── Trading Settings ─────────────────────────
@@ -82,30 +82,30 @@ class Messages:
     def trading_settings(symbol: str = "XAUUSD",
                          lot: float = 0.01,
                          direction: str = "both") -> str:
-        """إعدادات التداول الحالية"""
+        """Current trading settings"""
         symbol_name = config.symbols.get(symbol, symbol)
 
         direction_names = {
-            "buy": "🟢 الشراء فقط",
-            "sell": "🔴 البيع فقط",
-            "both": "🔄 الاتجاهين معاً",
+            "buy": "🟢 Buy Only",
+            "sell": "🔴 Sell Only",
+            "both": "🔄 Both Directions",
         }
 
         return (
-            "⚙️ **إعدادات الصفقات الحالية**\n\n"
-            f"🏆 **الأصل:** {symbol_name} ({symbol})\n"
-            f"📦 **حجم اللوت:** {lot}\n"
-            f"📊 **نوع العمليات:** {direction_names.get(direction, direction)}\n\n"
-            "اختر ما تريد تغييره:"
+            "⚙️ **Current Trade Settings**\n\n"
+            f"🏆 **Asset:** {symbol_name} ({symbol})\n"
+            f"📦 **Lot Size:** {lot}\n"
+            f"📊 **Trade Mode:** {direction_names.get(direction, direction)}\n\n"
+            "Choose what to change:"
         )
 
     @staticmethod
     def enter_custom_lot() -> str:
-        """طلب إدخال لوت مخصص"""
+        """Custom lot input prompt"""
         return (
-            "✏️ **أدخل حجم اللوت المطلوب:**\n\n"
-            "مثال: `0.25` أو `0.05`\n"
-            f"النطاق المسموح: {config.trading.min_lot} - {config.trading.max_lot}"
+            "✏️ **Enter desired lot size:**\n\n"
+            "Example: `0.25` or `0.05`\n"
+            f"Allowed range: {config.trading.min_lot} - {config.trading.max_lot}"
         )
 
     # ─── AI Settings ──────────────────────────────
@@ -116,57 +116,57 @@ class Messages:
                     news_enabled: bool = True,
                     timeframe: str = "M15",
                     backtest: bool = False) -> str:
-        """إعدادات الذكاء الاصطناعي"""
+        """AI configuration settings"""
         mode_names = {
-            "predictive": "🧠 التحليل التنبئي الذكي",
-            "news_scanning": "📰 فحص الأخبار الفوري",
-            "hybrid": "🔀 هجين (تحليل + أخبار)",
+            "predictive": "🧠 Predictive Analysis",
+            "news_scanning": "📰 News Scanning",
+            "hybrid": "🔀 Hybrid (Analysis + News)",
         }
 
         return (
-            "🤖 **إعدادات الذكاء الاصطناعي**\n\n"
-            f"🧠 **النموذج:** DeepSeek AI (deepseek-chat)\n"
-            f"📊 **نمط التحليل:** {mode_names.get(mode, mode)}\n"
-            f"🎯 **الحد الأدنى للثقة:** {confidence:.0f}%\n"
-            f"⏱️ **الإطار الزمني:** {timeframe}\n"
-            f"📰 **فحص الأخبار:** {'✅ مفعل' if news_enabled else '❌ معطل'}\n"
-            f"🧪 **وضع المحاكاة:** {'✅ مفعل' if backtest else '❌ معطل'}\n\n"
-            "اختر ما تريد تغييره:"
+            "🤖 **AI Configuration**\n\n"
+            f"🧠 **Model:** DeepSeek AI (deepseek-chat)\n"
+            f"📊 **Analysis Mode:** {mode_names.get(mode, mode)}\n"
+            f"🎯 **Confidence Threshold:** {confidence:.0f}%\n"
+            f"⏱️ **Timeframe:** {timeframe}\n"
+            f"📰 **News Check:** {'✅ Enabled' if news_enabled else '❌ Disabled'}\n"
+            f"🧪 **Backtest Mode:** {'✅ Enabled' if backtest else '❌ Disabled'}\n\n"
+            "Choose what to change:"
         )
 
     # ─── Trade Notification ───────────────────────
 
     @staticmethod
     def trade_opened(trade: Dict[str, Any]) -> str:
-        """إشعار فتح صفقة"""
+        """Trade opened notification"""
         direction_emoji = "🟢" if trade.get("direction") == "buy" else "🔴"
-        direction_name = "شراء (BUY)" if trade.get("direction") == "buy" else "بيع (SELL)"
+        direction_name = "BUY" if trade.get("direction") == "buy" else "SELL"
 
         return (
-            "🔔 **تنبيه: صفقة جديدة من الذكاء الاصطناعي!**\n\n"
-            f"📥 **النوع:** {direction_emoji} {direction_name}\n"
-            f"🏆 **الأصل:** {trade.get('symbol', 'N/A')}\n"
-            f"🎯 **سعر الدخول:** {trade.get('open_price', 0)}\n"
-            f"🛡️ **إيقاف الخسارة (SL):** {trade.get('stop_loss', 0)}\n"
-            f"💰 **جني الأرباح (TP):** {trade.get('take_profit', 0)}\n"
-            f"📦 **الحجم:** {trade.get('volume', 0)} لوت\n"
-            f"🧠 **نسبة ثقة النموذج:** {trade.get('confidence', 0):.1f}%\n"
-            f"🕐 **الوقت:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            "🔔 **Alert: New AI Trade Executed!**\n\n"
+            f"📥 **Type:** {direction_emoji} {direction_name}\n"
+            f"🏆 **Asset:** {trade.get('symbol', 'N/A')}\n"
+            f"🎯 **Entry Price:** {trade.get('open_price', 0)}\n"
+            f"🛡️ **Stop Loss (SL):** {trade.get('stop_loss', 0)}\n"
+            f"💰 **Take Profit (TP):** {trade.get('take_profit', 0)}\n"
+            f"📦 **Volume:** {trade.get('volume', 0)} lots\n"
+            f"🧠 **AI Confidence:** {trade.get('confidence', 0):.1f}%\n"
+            f"🕐 **Time:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
 
     @staticmethod
     def trade_closed(trade: Dict[str, Any]) -> str:
-        """إشعار إغلاق صفقة"""
+        """Trade closed notification"""
         pnl = trade.get("pnl", 0)
         pnl_emoji = "🟢" if pnl > 0 else "🔴" if pnl < 0 else "⚪"
 
         return (
-            "📢 **تنبيه: تم إغلاق صفقة**\n\n"
-            f"🏆 **الأصل:** {trade.get('symbol', 'N/A')}\n"
-            f"📥 **النوع:** {trade.get('direction', 'N/A')}\n"
-            f"🎯 **سعر الإغلاق:** {trade.get('close_price', 0)}\n"
-            f"💰 **الربح/الخسارة:** {pnl_emoji} ${pnl:,.2f}\n"
-            f"🕐 **الوقت:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+            "📢 **Alert: Trade Closed**\n\n"
+            f"🏆 **Asset:** {trade.get('symbol', 'N/A')}\n"
+            f"📥 **Type:** {trade.get('direction', 'N/A')}\n"
+            f"🎯 **Close Price:** {trade.get('close_price', 0)}\n"
+            f"💰 **Profit/Loss:** {pnl_emoji} ${pnl:,.2f}\n"
+            f"🕐 **Time:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
 
     # ─── Reports ──────────────────────────────────
@@ -175,37 +175,37 @@ class Messages:
     def performance_report(daily: Dict[str, Any],
                            all_time: Dict[str, Any],
                            balance: float = 42500.0) -> str:
-        """تقرير الأداء"""
+        """Performance report"""
         pnl_pct = (daily["total_pnl"] / balance * 100) if balance > 0 else 0
 
         return (
             "══════════════════════\n"
-            "📊 **تقارير الأداء والأرباح**\n"
+            "📊 **Performance & Earnings Report**\n"
             "══════════════════════\n\n"
-            "📅 **أداء اليوم:**\n"
-            f"   💰 الأرباح: {format_currency(daily['total_pnl'])} "
+            "📅 **Today's Performance:**\n"
+            f"   💰 P&L: {format_currency(daily['total_pnl'])} "
             f"({format_percentage(pnl_pct)})\n"
-            f"   📊 الصفقات: {daily['total_trades']}\n"
-            f"   ✅ الرابحة: {daily['winning_trades']}\n"
-            f"   ❌ الخاسرة: {daily['losing_trades']}\n"
-            f"   🎯 نسبة النجاح: {daily['win_rate']:.1f}%\n\n"
-            "📈 **الأداء الكلي:**\n"
-            f"   💰 إجمالي الأرباح: {format_currency(all_time['total_pnl'])}\n"
-            f"   📊 إجمالي الصفقات: {all_time['total_trades']}\n"
-            f"   🎯 نسبة النجاح: {all_time['win_rate']:.1f}%\n"
+            f"   📊 Trades: {daily['total_trades']}\n"
+            f"   ✅ Winners: {daily['winning_trades']}\n"
+            f"   ❌ Losers: {daily['losing_trades']}\n"
+            f"   🎯 Win Rate: {daily['win_rate']:.1f}%\n\n"
+            "📈 **All-Time Performance:**\n"
+            f"   💰 Total P&L: {format_currency(all_time['total_pnl'])}\n"
+            f"   📊 Total Trades: {all_time['total_trades']}\n"
+            f"   🎯 Win Rate: {all_time['win_rate']:.1f}%\n"
         )
 
     @staticmethod
     def recent_trades(trades: list) -> str:
-        """آخر الصفقات"""
+        """Recent trades list"""
         if not trades:
-            return "📋 لا توجد صفقات حديثة."
+            return "📋 No recent trades."
 
-        lines = ["📋 **آخر 10 صفقات:**\n"]
+        lines = ["📋 **Last 10 Trades:**\n"]
         for t in trades[:10]:
             pnl = t.pnl or 0
             pnl_emoji = "🟢" if pnl > 0 else "🔴"
-            direction = "شراء" if t.direction == "buy" else "بيع"
+            direction = "BUY" if t.direction == "buy" else "SELL"
             lines.append(
                 f"{pnl_emoji} {t.symbol} | {direction} | "
                 f"${pnl:+.2f} | {t.opened_at.strftime('%H:%M')}"
@@ -217,62 +217,62 @@ class Messages:
 
     @staticmethod
     def risk_status(status: Dict[str, Any]) -> str:
-        """حالة المخاطر"""
+        """Risk management status"""
         risk_emoji = {
-            "🟢 LOW": "🟢 منخفضة ✓",
-            "🟡 MEDIUM": "🟡 متوسطة ⚠",
-            "🟠 HIGH": "🟠 مرتفعة ⚠️",
-            "🔴 CRITICAL": "🔴 حرجة 🚨",
+            "🟢 LOW": "🟢 Low ✓",
+            "🟡 MEDIUM": "🟡 Medium ⚠",
+            "🟠 HIGH": "🟠 High ⚠️",
+            "🔴 CRITICAL": "🔴 Critical 🚨",
         }
 
         risk_level = status.get("risk_level", "🟢 LOW")
         risk_display = risk_emoji.get(risk_level, risk_level)
 
-        panic = "🚨 مفعل" if status.get("panic_mode") else "✅ غير مفعل"
-        paused = "⏸️ متوقف" if status.get("trading_paused") else "▶️ يعمل"
+        panic = "🚨 ACTIVE" if status.get("panic_mode") else "✅ Inactive"
+        paused = "⏸️ Paused" if status.get("trading_paused") else "▶️ Running"
 
         return (
-            "🔒 **إدارة المخاطر**\n\n"
-            f"📊 **مستوى المخاطرة:** {risk_display}\n"
-            f"💰 **أرباح اليوم:** {format_currency(status.get('daily_pnl', 0))}\n"
-            f"📉 **نسبة الخسارة اليومية:** {status.get('daily_pnl_pct', 0):+.2f}%\n"
-            f"📊 **صفقات مفتوحة:** {status.get('open_trades', 0)}/{status.get('max_open_trades', 3)}\n"
-            f"💵 **الرصيد:** {format_currency(status.get('balance', 0))}\n"
-            f"🚨 **وضع الطوارئ:** {panic}\n"
-            f"⏯️ **حالة التداول:** {paused}\n\n"
-            f"⚠️ الحد الأقصى للخسارة اليومية: {status.get('max_daily_loss', 5)}%"
+            "🔒 **Risk Management**\n\n"
+            f"📊 **Risk Level:** {risk_display}\n"
+            f"💰 **Today's P&L:** {format_currency(status.get('daily_pnl', 0))}\n"
+            f"📉 **Daily Loss %:** {status.get('daily_pnl_pct', 0):+.2f}%\n"
+            f"📊 **Open Positions:** {status.get('open_trades', 0)}/{status.get('max_open_trades', 3)}\n"
+            f"💵 **Balance:** {format_currency(status.get('balance', 0))}\n"
+            f"🚨 **Panic Mode:** {panic}\n"
+            f"⏯️ **Trading Status:** {paused}\n\n"
+            f"⚠️ Max Daily Loss Limit: {status.get('max_daily_loss', 5)}%"
         )
 
     # ─── Analysis Result ──────────────────────────
 
     @staticmethod
     def analysis_result(result: Dict[str, Any]) -> str:
-        """نتيجة تحليل السوق"""
+        """Market analysis result"""
         if result.get("error"):
-            return f"❌ {result.get('message', 'خطأ في التحليل')}"
+            return f"❌ {result.get('message', 'Analysis error')}"
 
         direction = result.get("direction", "hold")
         direction_display = {
-            "buy": "🟢 شراء (BUY)",
-            "sell": "🔴 بيع (SELL)",
-            "hold": "⏸️ انتظار (HOLD)",
+            "buy": "🟢 BUY",
+            "sell": "🔴 SELL",
+            "hold": "⏸️ HOLD",
         }.get(direction, direction)
 
         confidence = result.get("confidence", 0)
-        reasoning = result.get("reasoning", "لا يوجد تحليل")
+        reasoning = result.get("reasoning", "No analysis available")
 
         indicators = result.get("indicators", {})
 
         return (
-            "🔍 **تحليل السوق - AI DeepSeek**\n\n"
-            f"🏆 **الأصل:** {result.get('symbol', 'N/A')}\n"
-            f"⏱️ **الإطار:** {result.get('timeframe', 'N/A')}\n"
-            f"💵 **السعر الحالي:** {indicators.get('current_price', 'N/A')}\n\n"
-            f"📊 **التوصية:** {direction_display}\n"
-            f"🎯 **نسبة الثقة:** {confidence:.1f}%\n"
-            f"📝 **التحليل:** {reasoning}\n\n"
+            "🔍 **Market Analysis - AI DeepSeek**\n\n"
+            f"🏆 **Asset:** {result.get('symbol', 'N/A')}\n"
+            f"⏱️ **Timeframe:** {result.get('timeframe', 'N/A')}\n"
+            f"💵 **Current Price:** {indicators.get('current_price', 'N/A')}\n\n"
+            f"📊 **Recommendation:** {direction_display}\n"
+            f"🎯 **Confidence:** {confidence:.1f}%\n"
+            f"📝 **Analysis:** {reasoning}\n\n"
             f"📈 **RSI:** {indicators.get('rsi', 'N/A')}\n"
-            f"📉 **الاتجاه:** {indicators.get('trend', 'N/A')}\n"
+            f"📉 **Trend:** {indicators.get('trend', 'N/A')}\n"
             f"📊 **ADX:** {indicators.get('adx', 'N/A')}\n\n"
             f"🕐 {result.get('timestamp', '')}"
         )
@@ -280,37 +280,37 @@ class Messages:
     # ─── General ──────────────────────────────────
 
     @staticmethod
-    def error(message: str = "حدث خطأ غير متوقع") -> str:
-        """رسالة خطأ عامة"""
+    def error(message: str = "An unexpected error occurred") -> str:
+        """Generic error message"""
         return f"❌ {message}"
 
     @staticmethod
-    def success(message: str = "تمت العملية بنجاح") -> str:
-        """رسالة نجاح"""
+    def success(message: str = "Operation completed successfully") -> str:
+        """Success message"""
         return f"✅ {message}"
 
     @staticmethod
     def info(message: str) -> str:
-        """رسالة معلومات"""
+        """Info message"""
         return f"ℹ️ {message}"
 
     @staticmethod
     def loading() -> str:
-        """رسالة انتظار"""
-        return "⏳ جاري المعالجة... يرجى الانتظار"
+        """Loading message"""
+        return "⏳ Processing... please wait"
 
     @staticmethod
     def help_message() -> str:
-        """رسالة المساعدة"""
+        """Help message"""
         return (
-            "📖 **دليل استخدام بوت التداول الذكي**\n\n"
-            "**الأوامر الأساسية:**\n"
-            "/start - عرض لوحة التحكم الرئيسية\n"
-            "/help - هذه الرسالة\n"
-            "/status - حالة البوت والصفقات\n"
-            "/analyze - تحليل السوق الحالي\n"
-            "/report - تقرير الأداء\n"
-            "/settings - الإعدادات السريعة\n"
-            "/panic - إغلاق كل الصفقات\n\n"
-            "**للاستفسارات:** تواصل مع المطور"
+            "📖 **AI Cyber-Trader Bot User Guide**\n\n"
+            "**Basic Commands:**\n"
+            "/start - Display main dashboard\n"
+            "/help - This message\n"
+            "/status - Bot & position status\n"
+            "/analyze - Analyze current market\n"
+            "/report - Performance report\n"
+            "/settings - Quick settings\n"
+            "/panic - Close all positions\n\n"
+            "**For inquiries:** Contact the developer"
         )

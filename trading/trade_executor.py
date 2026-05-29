@@ -1,7 +1,7 @@
 """
-Trade Executor - منفذ الصفقات
-==============================
-يدير دورة حياة الصفقة من التحليل إلى التنفيذ
+Trade Executor
+===============
+Manages trade lifecycle from analysis to execution
 """
 from typing import Dict, Optional
 from datetime import datetime
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 
 class TradeExecutor:
-    """منفذ الصفقات الرئيسي"""
+    """Main trade executor"""
 
     def __init__(self, mt5: MT5Bridge = None, risk_manager: RiskManager = None,
                  predictor: AIPredictor = None, analyzer: MarketAnalyzer = None):
@@ -30,10 +30,10 @@ class TradeExecutor:
     def execute_analysis_cycle(self, user_id: int, symbol: str = None,
                                timeframe: str = None) -> Dict:
         """
-        دورة تحليل كاملة: تحليل → توقع → تنفيذ
+        Full analysis cycle: Analyze → Predict → Execute
 
         Returns:
-            Dict: نتيجة الدورة
+            Dict: Cycle result
         """
         symbol = symbol or config.trading.default_symbol
         timeframe = timeframe or config.ai.prediction_timeframe
@@ -50,7 +50,7 @@ class TradeExecutor:
             "message": "",
         }
 
-        # 1. التحقق من المخاطر
+        # 1. Risk check
         can_trade, reason = self.risk.can_open_trade(
             user_id, symbol, config.trading.default_lot,
             db.get_setting(user_id, "direction", "both")
@@ -61,7 +61,7 @@ class TradeExecutor:
             result["action"] = "blocked"
             return result
 
-        # 2. تحليل السوق
+        # 2. Market analysis
         if self.analyzer:
             market_analysis = self.analyzer.analyze(symbol, timeframe, user_id=user_id)
         else:
@@ -72,53 +72,53 @@ class TradeExecutor:
             result["message"] = market_analysis["message"]
             return result
 
-        # 3. توقع AI
+        # 3. AI prediction
         if self.predictor:
             prediction = self.predictor.predict(symbol, market_analysis, user_id)
         else:
             result["message"] = "⚠️ Predictor not initialized"
             return result
 
-        # 4. التحقق من نسبة الثقة
+        # 4. Check confidence threshold
         confidence = prediction.get("ai_confidence", 0)
         threshold = ai_cfg.confidence_threshold
 
         if confidence < threshold:
             result["action"] = "low_confidence"
             result["message"] = (
-                f"📉 نسبة الثقة ({confidence:.1f}%) أقل من الحد الأدنى "
-                f"({threshold:.0f}%). لم يتم فتح صفقة."
+                f"📉 Confidence ({confidence:.1f}%) below threshold "
+                f"({threshold:.0f}%). No trade opened."
             )
             result["prediction"] = prediction
             return result
 
-        # 5. الحصول على إعدادات التداول للمستخدم
+        # 5. Get user trading settings
         lot_setting = db.get_setting(user_id, "lot", str(config.trading.default_lot))
         volume = float(lot_setting)
         direction_setting = db.get_setting(user_id, "direction", "both")
         ai_direction = prediction.get("ai_analysis", "hold")
 
-        # التحقق من تطابق الاتجاه
+        # Check direction match
         if direction_setting == "buy" and ai_direction != "buy":
             result["action"] = "direction_mismatch"
-            result["message"] = "🔴 الإعدادات تسمح بالشراء فقط."
+            result["message"] = "🔴 Settings allow BUY only."
             return result
         if direction_setting == "sell" and ai_direction != "sell":
             result["action"] = "direction_mismatch"
-            result["message"] = "🟢 الإعدادات تسمح بالبيع فقط."
+            result["message"] = "🟢 Settings allow SELL only."
             return result
 
         if ai_direction == "hold":
             result["action"] = "hold"
-            result["message"] = f"⏸️ توصية AI: انتظار.\n{market_analysis.get('reasoning', '')}"
+            result["message"] = f"⏸️ AI recommendation: HOLD.\n{market_analysis.get('reasoning', '')}"
             return result
 
-        # 6. حساب SL/TP
+        # 6. Calculate SL/TP
         entry_price = prediction.get("entry_price", 0)
         stop_loss = prediction.get("stop_loss", 0)
         take_profit = prediction.get("take_profit", 0)
 
-        # 7. تنفيذ الصفقة
+        # 7. Execute trade
         if self.mt5:
             ticket = self.mt5.place_order(
                 symbol=symbol,
@@ -133,7 +133,7 @@ class TradeExecutor:
             # Simulation
             ticket = None
 
-        # 8. حفظ الصفقة في قاعدة البيانات
+        # 8. Save trade to database
         trade = db.create_trade(
             user_id=user_id,
             symbol=symbol,
@@ -150,14 +150,14 @@ class TradeExecutor:
         result["action"] = "executed"
         result["trade_executed"] = True
         result["message"] = (
-            f"✅ تم فتح صفقة جديدة!\n\n"
-            f"📥 النوع: {'شراء 🟢' if ai_direction == 'buy' else 'بيع 🔴'}\n"
-            f"🏆 الأصل: {symbol}\n"
-            f"🎯 سعر الدخول: {entry_price}\n"
-            f"🛡️ إيقاف الخسارة: {stop_loss}\n"
-            f"💰 جني الأرباح: {take_profit}\n"
-            f"📦 الحجم: {volume} لوت\n"
-            f"🧠 نسبة الثقة: {confidence:.1f}%"
+            f"✅ New trade opened!\n\n"
+            f"📥 Type: {'BUY 🟢' if ai_direction == 'buy' else 'SELL 🔴'}\n"
+            f"🏆 Asset: {symbol}\n"
+            f"🎯 Entry Price: {entry_price}\n"
+            f"🛡️ Stop Loss: {stop_loss}\n"
+            f"💰 Take Profit: {take_profit}\n"
+            f"📦 Volume: {volume} lots\n"
+            f"🧠 AI Confidence: {confidence:.1f}%"
         )
         result["trade"] = {
             "id": trade.id,
@@ -182,10 +182,10 @@ class TradeExecutor:
     def execute_manual_trade(self, user_id: int, symbol: str, direction: str,
                              volume: float, sl: float = 0, tp: float = 0) -> Dict:
         """
-        تنفيذ صفقة يدوية (من المستخدم مباشرة)
+        Execute a manual trade (directly from user)
 
         Returns:
-            Dict: نتيجة التنفيذ
+            Dict: Execution result
         """
         result = {
             "success": False,
@@ -193,7 +193,7 @@ class TradeExecutor:
             "trade": None,
         }
 
-        # 1. التحقق من المخاطر
+        # 1. Risk check
         can_trade, reason = self.risk.can_open_trade(
             user_id, symbol, volume, direction
         )
@@ -201,23 +201,23 @@ class TradeExecutor:
             result["message"] = reason
             return result
 
-        # 2. جلب السعر الحالي
+        # 2. Get current price
         if self.mt5:
             tick = self.mt5.get_tick(symbol)
             if not tick:
-                result["message"] = f"❌ تعذر جلب سعر {symbol}"
+                result["message"] = f"❌ Could not fetch price for {symbol}"
                 return result
             entry_price = tick["ask"] if direction == "buy" else tick["bid"]
         else:
             entry_price = 2345.50 if symbol == "XAUUSD" else 1.0850
 
-        # 3. حساب SL/TP إذا لم يحدد
+        # 3. Calculate SL/TP if not specified
         if not sl:
             sl = self.risk.calculate_stop_loss(symbol, direction, entry_price)
         if not tp:
             tp = self.risk.calculate_take_profit(symbol, direction, entry_price)
 
-        # 4. تنفيذ الصفقة
+        # 4. Execute trade
         if self.mt5:
             ticket = self.mt5.place_order(
                 symbol=symbol,
@@ -231,7 +231,7 @@ class TradeExecutor:
         else:
             ticket = None
 
-        # 5. حفظ في قاعدة البيانات
+        # 5. Save to database
         db = get_db()
         trade = db.create_trade(
             user_id=user_id,
@@ -246,10 +246,10 @@ class TradeExecutor:
 
         result["success"] = True
         result["message"] = (
-            f"✅ تم فتح صفقة يدوية!\n"
+            f"✅ Manual trade opened!\n"
             f"📥 {direction.upper()} | {symbol}\n"
-            f"🎯 السعر: {entry_price}\n"
-            f"📦 الحجم: {volume} لوت"
+            f"🎯 Price: {entry_price}\n"
+            f"📦 Volume: {volume} lots"
         )
         result["trade"] = {
             "id": trade.id,
@@ -265,18 +265,15 @@ class TradeExecutor:
         return result
 
     def close_trade_by_id(self, trade_id: int, user_id: int) -> Dict:
-        """
-        إغلاق صفقة محددة
-        """
+        """Close a specific trade by ID"""
         db = get_db()
         trade = None
 
-        # جلب الصفقة (سيتم تحديثها)
-        # نغلق في MT5 أولاً
+        # Close in MT5 first
         if self.mt5 and trade and trade.ticket:
             self.mt5.close_position(trade.ticket, trade.symbol)
 
-        # تحديث قاعدة البيانات
+        # Update database
         close_price = 0
         if self.mt5:
             tick = self.mt5.get_tick(trade.symbol if trade else "XAUUSD")
@@ -284,7 +281,7 @@ class TradeExecutor:
 
         db.close_trade(trade_id, close_price, 0, 0)
 
-        return {"success": True, "message": "✅ تم إغلاق الصفقة بنجاح"}
+        return {"success": True, "message": "✅ Trade closed successfully"}
 
 
 # Singleton
@@ -293,7 +290,7 @@ _executor_instance: Optional[TradeExecutor] = None
 
 def get_executor(mt5=None, risk=None, predictor=None,
                  analyzer=None) -> TradeExecutor:
-    """الحصول على نسخة منفذ الصفقات"""
+    """Get TradeExecutor singleton instance"""
     global _executor_instance
     if _executor_instance is None:
         _executor_instance = TradeExecutor(mt5, risk, predictor, analyzer)

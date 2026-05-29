@@ -1,7 +1,7 @@
 """
-AI Predictor - متنبئ الذكاء الاصطناعي
-====================================
-يدمج بين المؤشرات الفنية و ML و DeepSeek للتوقع
+AI Predictor
+=============
+Combines technical indicators, ML, and DeepSeek for predictions
 """
 from typing import Dict, Optional, List
 from datetime import datetime
@@ -30,7 +30,7 @@ except ImportError:
 
 
 class AIPredictor:
-    """متنبئ متكامل يجمع بين DeepSeek AI و ML"""
+    """Integrated predictor combining DeepSeek AI and ML"""
 
     def __init__(self, deepseek_client: DeepSeekClient = None):
         self.deepseek = deepseek_client or DeepSeekClient()
@@ -42,33 +42,33 @@ class AIPredictor:
     def predict(self, symbol: str, market_data: Dict,
                 user_id: Optional[int] = None) -> Dict:
         """
-        التنبؤ بحركة السوق
+        Predict market movement
 
         Args:
-            symbol: رمز الأصل
-            market_data: بيانات السوق من MarketAnalyzer
-            user_id: معرف المستخدم
+            symbol: Asset symbol
+            market_data: Market data from MarketAnalyzer
+            user_id: User ID
 
         Returns:
-            Dict: توصية التداول
+            Dict: Trading recommendation
         """
-        # 1. جلب إعدادات AI للمستخدم
+        # 1. Get user AI settings
         confidence_threshold = config.ai.confidence_threshold
         if user_id:
             db = get_db()
             ai_cfg = db.get_ai_config(user_id)
             confidence_threshold = ai_cfg.confidence_threshold
 
-        # 2. تحليل DeepSeek AI
+        # 2. DeepSeek AI analysis
         indicators = market_data.get("indicators", {})
 
-        # 3. تحليل ML (إذا متاح)
+        # 3. ML analysis (if available)
         ml_prediction = self._ml_predict(indicators)
 
-        # 4. تحليل مبسط مبدئي (قبل DeepSeek)
+        # 4. Preliminary analysis (before DeepSeek)
         preliminary = self._preliminary_analysis(indicators)
 
-        # 5. دمج النتائج
+        # 5. Merge results
         result = {
             "symbol": symbol,
             "timestamp": datetime.utcnow().isoformat(),
@@ -85,16 +85,16 @@ class AIPredictor:
             "take_profit": market_data.get("take_profit", 0),
         }
 
-        # 6. تعديل نقاط الدخول/الخروج إذا لم يحددها DeepSeek
+        # 6. Adjust entry/exit points if not specified by DeepSeek
         self._adjust_entry_exit(result, indicators)
 
         return result
 
     def _preliminary_analysis(self, indicators: Dict) -> Dict:
         """
-        تحليل مبدئي سريع (بدون AI)
+        Quick preliminary analysis (without AI)
 
-        يعطي إشارة سريعة بناءً على المؤشرات فقط
+        Gives a fast signal based on indicators only
         """
         signals = []
         score = 0  # -100 to +100
@@ -102,60 +102,60 @@ class AIPredictor:
         rsi = indicators.get("rsi")
         if rsi is not None:
             if rsi < 30:
-                signals.append("RSI: تشبع بيع (شراء)")
+                signals.append("RSI: Oversold (Buy)")
                 score += 20
             elif rsi > 70:
-                signals.append("RSI: تشبع شراء (بيع)")
+                signals.append("RSI: Overbought (Sell)")
                 score -= 20
             else:
-                score += (50 - rsi) * 0.5  # ميل طفيف
+                score += (50 - rsi) * 0.5  # Slight bias
 
         macd_hist = indicators.get("macd_histogram")
         if macd_hist is not None:
             if macd_hist > 0:
-                signals.append("MACD: إيجابي")
+                signals.append("MACD: Positive")
                 score += 15
             else:
-                signals.append("MACD: سلبي")
+                signals.append("MACD: Negative")
                 score -= 15
 
         trend = indicators.get("trend")
         if trend == "up":
-            signals.append("الاتجاه: صاعد")
+            signals.append("Trend: Upward")
             score += 20
         elif trend == "down":
-            signals.append("الاتجاه: هابط")
+            signals.append("Trend: Downward")
             score -= 20
 
         adx = indicators.get("adx")
         if adx is not None:
             if adx > 25:
-                signals.append(f"ADX: اتجاه قوي ({adx:.0f})")
+                signals.append(f"ADX: Strong trend ({adx:.0f})")
                 score += 10 * (1 if score > 0 else -1)
             else:
-                signals.append(f"ADX: سوق متذبذب ({adx:.0f})")
+                signals.append(f"ADX: Ranging market ({adx:.0f})")
 
         bb_percent = indicators.get("bb_percent")
         if bb_percent is not None:
             if bb_percent < 0.1:
-                signals.append("BB: السعر عند الحد السفلي (شراء محتمل)")
+                signals.append("BB: Price at lower band (Potential Buy)")
                 score += 15
             elif bb_percent > 0.9:
-                signals.append("BB: السعر عند الحد العلوي (بيع محتمل)")
+                signals.append("BB: Price at upper band (Potential Sell)")
                 score -= 15
 
         candlestick = indicators.get("candlestick_patterns", [])
         for pattern in candlestick:
             if "Bullish" in pattern:
                 score += 10
-                signals.append(f"نمط: {pattern}")
+                signals.append(f"Pattern: {pattern}")
             elif "Bearish" in pattern:
                 score -= 10
-                signals.append(f"نمط: {pattern}")
+                signals.append(f"Pattern: {pattern}")
             else:
-                signals.append(f"نمط: {pattern}")
+                signals.append(f"Pattern: {pattern}")
 
-        # تحديد الاتجاه المبدئي
+        # Determine preliminary direction
         if score > 25:
             direction = "buy"
         elif score < -25:
@@ -163,7 +163,7 @@ class AIPredictor:
         else:
             direction = "hold"
 
-        # تحويل score إلى نسبة ثقة تقريبية
+        # Convert score to approximate confidence
         confidence = min(abs(score), 95)
 
         return {
@@ -176,15 +176,15 @@ class AIPredictor:
 
     def _ml_predict(self, indicators: Dict) -> Optional[Dict]:
         """
-        تنبؤ باستخدام نموذج ML (XGBoost)
+        Predict using ML model (XGBoost)
 
-        ملاحظة: يحتاج تدريب مسبق على بيانات تاريخية
+        Note: Requires prior training on historical data
         """
         if not HAS_XGBOOST or not self.is_trained:
             return None
 
         try:
-            # استخراج features
+            # Extract features
             features = np.array([[
                 indicators.get("rsi", 50),
                 indicators.get("macd_histogram", 0),
@@ -201,7 +201,7 @@ class AIPredictor:
                 features = self.scaler.transform(features)
 
             proba = self.ml_model.predict_proba(features)[0]
-            # افتراض: classes = [down, hold, up]
+            # Assume: classes = [down, hold, up]
             if len(proba) == 3:
                 label = ["sell", "hold", "buy"][np.argmax(proba)]
                 confidence = np.max(proba) * 100
@@ -220,10 +220,10 @@ class AIPredictor:
 
     def train_ml_model(self, historical_data: List[Dict]):
         """
-        تدريب نموذج ML على بيانات تاريخية
+        Train ML model on historical data
 
         Args:
-            historical_data: قائمة صفقات تاريخية مع مؤشراتها
+            historical_data: List of historical trades with their indicators
         """
         if not HAS_XGBOOST:
             logger.warning("XGBoost not installed, cannot train")
@@ -276,14 +276,14 @@ class AIPredictor:
 
     def _adjust_entry_exit(self, result: Dict, indicators: Dict):
         """
-        تعديل وحساب نقاط الدخول والخروج إذا لم يحددها AI
+        Calculate and adjust entry/exit points if not specified by AI
         """
         current_price = indicators.get("current_price", result.get("current_price", 0))
         atr = indicators.get("atr", current_price * 0.01)
 
         direction = result.get("ai_analysis", "hold")
 
-        # إذا لم يحدد DeepSeek نقاط دخول/خروج
+        # If DeepSeek didn't specify entry/exit points
         if result.get("entry_price", 0) <= 0:
             result["entry_price"] = current_price
 

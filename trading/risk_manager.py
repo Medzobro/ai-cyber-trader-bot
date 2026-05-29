@@ -1,7 +1,7 @@
 """
-Risk Manager - إدارة المخاطر
-=============================
-يتحكم في المخاطر وإيقاف الخسارة وحماية رأس المال
+Risk Manager
+=============
+Controls risk, stop loss, and capital protection
 """
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class RiskManager:
-    """مدير المخاطر"""
+    """Risk manager"""
 
     def __init__(self, mt5_bridge=None):
         self.mt5 = mt5_bridge
@@ -26,60 +26,60 @@ class RiskManager:
     def can_open_trade(self, user_id: int, symbol: str,
                        volume: float, direction: str) -> Tuple[bool, str]:
         """
-        التحقق من إمكانية فتح صفقة جديدة
+        Check if a new trade can be opened
 
         Returns:
-            Tuple[bool, str]: (مسموح, السبب)
+            Tuple[bool, str]: (allowed, reason)
         """
-        # 1. التحقق من وضع الطوارئ
+        # 1. Check panic mode
         if self.panic_mode.get(user_id, False):
-            return False, "🚨 وضع الطوارئ مفعل! جميع الصفقات متوقفة."
+            return False, "🚨 Panic mode active! All trading stopped."
 
-        # 2. التحقق من الإيقاف المؤقت
+        # 2. Check paused status
         if self.trading_paused.get(user_id, False):
-            return False, "⏸️ التداول متوقف مؤقتاً."
+            return False, "⏸️ Trading is paused."
 
-        # 3. التحقق من عدد الصفقات المفتوحة
+        # 3. Check open positions count
         db = get_db()
         open_count = db.get_open_trades_count(user_id)
         if open_count >= config.trading.max_open_trades:
-            return False, f"⚠️ وصلت للحد الأقصى ({config.trading.max_open_trades} صفقات مفتوحة)"
+            return False, f"⚠️ Max open positions reached ({config.trading.max_open_trades})"
 
-        # 4. التحقق من حجم العقد
+        # 4. Check lot size
         if volume < config.trading.min_lot:
-            return False, f"⚠️ حجم اللوت أقل من المسموح ({config.trading.min_lot})"
+            return False, f"⚠️ Lot size below minimum ({config.trading.min_lot})"
         if volume > config.trading.max_lot:
-            return False, f"⚠️ حجم اللوت أكبر من المسموح ({config.trading.max_lot})"
+            return False, f"⚠️ Lot size exceeds maximum ({config.trading.max_lot})"
 
-        # 5. التحقق من الخسارة اليومية
+        # 5. Check daily loss
         daily_loss_pct = self._get_daily_loss_percentage(user_id)
         if daily_loss_pct >= config.trading.max_daily_loss:
-            return False, f"🛑 تجاوزت الحد الأقصى للخسارة اليومية ({config.trading.max_daily_loss}%)\nتم إيقاف التداول لليوم."
+            return False, f"🛑 Max daily loss limit reached ({config.trading.max_daily_loss}%)\nTrading stopped for today."
 
-        # 6. التحقق من ساعات التداول
+        # 6. Check trading hours
         now = datetime.utcnow()
         if not (config.trading.trading_start_hour <= now.hour <= config.trading.trading_end_hour):
-            return False, "🕐 خارج ساعات التداول المحددة."
+            return False, "🕐 Outside trading hours."
 
-        # 7. التحقق من اتصال MT5
+        # 7. Check MT5 connection
         if self.mt5 and not self.mt5.is_connected():
-            return False, "⚠️ منصة MT5 غير متصلة."
+            return False, "⚠️ MT5 platform not connected."
 
         return True, "✅"
 
     def calculate_position_size(self, balance: float, risk_percent: float,
                                 stop_loss_pips: float, symbol: str) -> float:
         """
-        حساب حجم العقد المناسب بناءً على المخاطرة
+        Calculate appropriate position size based on risk
 
         Args:
-            balance: الرصيد
-            risk_percent: نسبة المخاطرة (%)
-            stop_loss_pips: عدد نقاط وقف الخسارة
-            symbol: رمز الأصل
+            balance: Account balance
+            risk_percent: Risk percentage (%)
+            stop_loss_pips: Stop loss in pips
+            symbol: Asset symbol
 
         Returns:
-            float: حجم العقد
+            float: Lot size
         """
         risk_amount = balance * (risk_percent / 100)
 
@@ -93,25 +93,25 @@ class RiskManager:
 
         lot_size = risk_amount / (stop_loss_pips * pip_value)
 
-        # تطبيق الحدود
+        # Apply limits
         lot_size = max(config.trading.min_lot, min(lot_size, config.trading.max_lot))
 
-        # تقريب إلى منزلتين عشريتين
+        # Round to 2 decimal places
         return round(lot_size, 2)
 
     def calculate_stop_loss(self, symbol: str, direction: str,
                             entry_price: float, pips: int = None) -> float:
         """
-        حساب سعر إيقاف الخسارة
+        Calculate stop loss price
 
         Args:
-            symbol: رمز الأصل
+            symbol: Asset symbol
             direction: buy/sell
-            entry_price: سعر الدخول
-            pips: عدد النقاط
+            entry_price: Entry price
+            pips: Number of pips
 
         Returns:
-            float: سعر وقف الخسارة
+            float: Stop loss price
         """
         pips = pips or config.trading.stop_loss_pips
 
@@ -132,9 +132,7 @@ class RiskManager:
 
     def calculate_take_profit(self, symbol: str, direction: str,
                               entry_price: float, pips: int = None) -> float:
-        """
-        حساب سعر جني الأرباح
-        """
+        """Calculate take profit price"""
         pips = pips or config.trading.take_profit_pips
 
         if direction == "buy":
@@ -154,10 +152,10 @@ class RiskManager:
 
     def activate_panic(self, user_id: int) -> int:
         """
-        تفعيل زر الطوارئ - إغلاق كل الصفقات
+        Activate panic mode - close all positions
 
         Returns:
-            int: عدد الصفقات المغلقة
+            int: Number of positions closed
         """
         self.panic_mode[user_id] = True
         logger.warning(f"🚨 PANIC MODE activated for user {user_id}")
@@ -166,7 +164,7 @@ class RiskManager:
         if self.mt5:
             closed_count = self.mt5.close_all_positions()
 
-        # تحديث قاعدة البيانات
+        # Update database
         db = get_db()
         open_trades = db.get_open_trades(user_id)
         for trade in open_trades:
@@ -176,24 +174,22 @@ class RiskManager:
         return closed_count
 
     def deactivate_panic(self, user_id: int):
-        """إلغاء وضع الطوارئ"""
+        """Deactivate panic mode"""
         self.panic_mode[user_id] = False
         logger.info(f"✅ Panic mode deactivated for user {user_id}")
 
     def pause_trading(self, user_id: int):
-        """إيقاف التداول مؤقتاً"""
+        """Pause trading"""
         self.trading_paused[user_id] = True
         logger.info(f"⏸️ Trading paused for user {user_id}")
 
     def resume_trading(self, user_id: int):
-        """استئناف التداول"""
+        """Resume trading"""
         self.trading_paused[user_id] = False
         logger.info(f"▶️ Trading resumed for user {user_id}")
 
     def get_risk_status(self, user_id: int) -> Dict:
-        """
-        تقرير حالة المخاطر
-        """
+        """Get risk status report"""
         db = get_db()
         open_trades = db.get_open_trades(user_id)
         today_stats = db.get_today_performance(user_id)
@@ -215,7 +211,7 @@ class RiskManager:
         }
 
     def _get_daily_loss_percentage(self, user_id: int) -> float:
-        """حساب نسبة الخسارة اليومية"""
+        """Calculate daily loss percentage"""
         db = get_db()
         today = db.get_today_performance(user_id)
         balance = self.mt5.get_balance() if self.mt5 else 42500.0
@@ -225,7 +221,7 @@ class RiskManager:
 
     def _calculate_risk_level(self, daily_loss_pct: float,
                               open_trades: int) -> str:
-        """حساب مستوى المخاطرة"""
+        """Calculate risk level"""
         if self.panic_mode:
             return "🔴 CRITICAL"
 
@@ -243,7 +239,7 @@ _risk_instance: Optional[RiskManager] = None
 
 
 def get_risk_manager(mt5_bridge=None) -> RiskManager:
-    """الحصول على نسخة مدير المخاطر"""
+    """Get RiskManager singleton instance"""
     global _risk_instance
     if _risk_instance is None:
         _risk_instance = RiskManager(mt5_bridge)

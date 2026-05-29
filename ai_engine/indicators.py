@@ -1,7 +1,7 @@
 """
-Technical Indicators - المؤشرات الفنية
-======================================
-حساب المؤشرات الفنية باستخدام pandas و numpy
+Technical Indicators
+=====================
+Calculate technical indicators using pandas and numpy
 """
 import numpy as np
 import pandas as pd
@@ -12,15 +12,15 @@ logger = get_logger(__name__)
 
 
 class TechnicalIndicators:
-    """حساب المؤشرات الفنية للتداول"""
+    """Technical indicators calculator for trading"""
 
     @staticmethod
     def rsi(prices: pd.Series, period: int = 14) -> pd.Series:
         """
-        مؤشر القوة النسبية (RSI)
+        Relative Strength Index (RSI)
 
-        RSI > 70: تشبع شراء (Overbought)
-        RSI < 30: تشبع بيع (Oversold)
+        RSI > 70: Overbought
+        RSI < 30: Oversold
         """
         delta = prices.diff()
         gain = delta.clip(lower=0)
@@ -37,7 +37,7 @@ class TechnicalIndicators:
     def macd(prices: pd.Series, fast: int = 12, slow: int = 26,
              signal: int = 9) -> Dict[str, pd.Series]:
         """
-        مؤشر MACD (المتوسط المتحرك المتقارب المتباعد)
+        MACD (Moving Average Convergence Divergence)
 
         Returns:
             Dict with 'macd', 'signal', 'histogram'
@@ -57,19 +57,19 @@ class TechnicalIndicators:
 
     @staticmethod
     def ema(prices: pd.Series, period: int) -> pd.Series:
-        """المتوسط المتحرك الأسي (EMA)"""
+        """Exponential Moving Average (EMA)"""
         return prices.ewm(span=period, adjust=False).mean()
 
     @staticmethod
     def sma(prices: pd.Series, period: int) -> pd.Series:
-        """المتوسط المتحرك البسيط (SMA)"""
+        """Simple Moving Average (SMA)"""
         return prices.rolling(window=period).mean()
 
     @staticmethod
     def bollinger_bands(prices: pd.Series, period: int = 20,
                         std_dev: float = 2.0) -> Dict[str, pd.Series]:
         """
-        مؤشر بولينجر (Bollinger Bands)
+        Bollinger Bands
 
         Returns:
             Dict with 'upper', 'middle', 'lower', 'bandwidth', 'percent_b'
@@ -94,7 +94,7 @@ class TechnicalIndicators:
     def atr(high: pd.Series, low: pd.Series, close: pd.Series,
             period: int = 14) -> pd.Series:
         """
-        متوسط المدى الحقيقي (ATR) - مقياس التقلب
+        Average True Range (ATR) - Volatility measure
         """
         prev_close = close.shift(1)
 
@@ -111,10 +111,10 @@ class TechnicalIndicators:
     def adx(high: pd.Series, low: pd.Series, close: pd.Series,
             period: int = 14) -> Dict[str, pd.Series]:
         """
-        مؤشر متوسط الحركة الاتجاهية (ADX)
+        Average Directional Index (ADX)
 
-        ADX > 25: اتجاه قوي
-        ADX < 20: سوق متذبذب
+        ADX > 25: Strong trend
+        ADX < 20: Ranging market
 
         Returns:
             Dict with 'adx', 'plus_di', 'minus_di'
@@ -156,7 +156,7 @@ class TechnicalIndicators:
     def stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
                    k_period: int = 14, d_period: int = 3) -> Dict[str, pd.Series]:
         """
-        مؤشر ستوكاستيك (Stochastic Oscillator)
+        Stochastic Oscillator
 
         Returns:
             Dict with 'k', 'd'
@@ -173,12 +173,11 @@ class TechnicalIndicators:
     def support_resistance(high: pd.Series, low: pd.Series, close: pd.Series,
                            window: int = 20, threshold: float = 0.02) -> Dict:
         """
-        تحديد مستويات الدعم والمقاومة
+        Identify support and resistance levels
 
         Returns:
             Dict with 'support', 'resistance', 'pivot'
         """
-        # استخدام أعلى وأدنى نقاط في النافذة
         resistance_levels = []
         support_levels = []
 
@@ -188,8 +187,8 @@ class TechnicalIndicators:
             if low.iloc[i] == low.iloc[i-window:i+window+1].min():
                 support_levels.append(low.iloc[i])
 
-        # تجميع المستويات القريبة
         def cluster_levels(levels: List[float], threshold: float) -> List[float]:
+            """Group nearby levels together"""
             if not levels:
                 return []
             levels = sorted(set(levels))
@@ -215,7 +214,7 @@ class TechnicalIndicators:
     def trend_direction(prices: pd.Series, short_period: int = 20,
                         long_period: int = 50) -> str:
         """
-        تحديد اتجاه الترند
+        Determine trend direction
 
         Returns: 'up', 'down', 'sideways'
         """
@@ -236,9 +235,9 @@ class TechnicalIndicators:
     def candlestick_pattern(open_: pd.Series, high: pd.Series,
                             low: pd.Series, close: pd.Series) -> List[str]:
         """
-        اكتشاف أنماط الشموع
+        Detect candlestick patterns
 
-        Returns: قائمة بالأنماط المكتشفة
+        Returns: List of detected patterns
         """
         patterns = []
 
@@ -249,23 +248,23 @@ class TechnicalIndicators:
         upper_shadow = high - close.clip(lower=open_)
         lower_shadow = open_.clip(lower=close) - low
 
-        # Doji (شمعة دوجي)
+        # Doji
         last_body = body.iloc[-1]
         last_range = high.iloc[-1] - low.iloc[-1]
         if last_range > 0 and last_body / last_range < 0.1:
             patterns.append("Doji ⏸️")
 
-        # Hammer (المطرقة)
+        # Hammer
         last_lower = lower_shadow.iloc[-1]
         if last_range > 0 and last_lower > last_body * 2 and upper_shadow.iloc[-1] < last_body * 0.5:
             patterns.append("Hammer 🔨")
 
-        # Shooting Star (النجمة الهابطة)
+        # Shooting Star
         last_upper = upper_shadow.iloc[-1]
         if last_range > 0 and last_upper > last_body * 2 and lower_shadow.iloc[-1] < last_body * 0.5:
             patterns.append("Shooting Star ⭐")
 
-        # Engulfing (الابتلاع)
+        # Engulfing
         if len(body) >= 2:
             prev_body = body.iloc[-2]
             prev_close = close.iloc[-2]
@@ -291,13 +290,13 @@ class TechnicalIndicators:
 
     def get_all_indicators(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
-        حساب جميع المؤشرات من DataFrame
+        Calculate all indicators from DataFrame
 
         Args:
-            df: DataFrame مع أعمدة 'open', 'high', 'low', 'close', 'volume' (اختياري)
+            df: DataFrame with columns 'open', 'high', 'low', 'close', 'volume' (optional)
 
         Returns:
-            Dict: جميع المؤشرات كقيم مفردة (أحدث قيمة)
+            Dict: All indicators as single values (latest value)
         """
         close = df["close"]
         high = df["high"]

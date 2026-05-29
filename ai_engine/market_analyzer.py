@@ -1,7 +1,7 @@
 """
-Market Analyzer - محلل السوق
-=============================
-يجمع بيانات MT5 ويحسب المؤشرات ويغذي DeepSeek AI
+Market Analyzer
+================
+Combines MT5 data, calculates indicators, and feeds DeepSeek AI
 """
 from datetime import datetime
 from typing import Optional, Dict, List, Any
@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 class MarketAnalyzer:
-    """محلل السوق الشامل"""
+    """Comprehensive market analyzer"""
 
     def __init__(self, mt5_bridge=None, deepseek_client: DeepSeekClient = None):
         self.mt5 = mt5_bridge  # MT5Bridge instance
@@ -26,37 +26,37 @@ class MarketAnalyzer:
     def analyze(self, symbol: str, timeframe: str = None,
                 bars_count: int = None, user_id: int = None) -> Dict[str, Any]:
         """
-        تحليل شامل للسوق
+        Comprehensive market analysis
 
         Args:
-            symbol: رمز الأصل
-            timeframe: الإطار الزمني
-            bars_count: عدد الشموع المطلوبة
-            user_id: معرف المستخدم (لإعدادات AI)
+            symbol: Asset symbol
+            timeframe: Timeframe
+            bars_count: Number of candles required
+            user_id: User ID (for AI settings)
 
         Returns:
-            Dict: تحليل كامل مع توصية
+            Dict: Complete analysis with recommendation
         """
         timeframe = timeframe or config.ai.prediction_timeframe
         bars_count = bars_count or config.ai.max_historical_bars
 
         logger.info(f"🔍 Analyzing {symbol} on {timeframe}...")
 
-        # 1. جلب بيانات السوق من MT5
+        # 1. Fetch market data from MT5
         market_data = self._fetch_market_data(symbol, timeframe, bars_count)
 
         if market_data is None:
             return {
                 "error": True,
-                "message": f"❌ تعذر جلب بيانات {symbol}. تأكد من اتصال MT5.",
+                "message": f"❌ Could not fetch data for {symbol}. Check MT5 connection.",
                 "direction": "hold",
                 "confidence": 0,
             }
 
-        # 2. حساب المؤشرات الفنية
+        # 2. Calculate technical indicators
         indicators_data = self.indicators.get_all_indicators(market_data["df"])
 
-        # 3. تجهيز بيانات التحليل لـ DeepSeek
+        # 3. Prepare analysis payload for DeepSeek
         analysis_payload = {
             "symbol": symbol,
             "timeframe": timeframe,
@@ -73,7 +73,7 @@ class MarketAnalyzer:
             "volume": market_data.get("volume", 0),
         }
 
-        # 4. تحليل الأخبار إذا مفعل
+        # 4. Analyze news if enabled
         news_context = None
         if config.ai.news_check_enabled and user_id:
             from database.db_manager import get_db
@@ -82,7 +82,7 @@ class MarketAnalyzer:
             if ai_cfg.news_check_enabled:
                 news_context = self._get_news_context(symbol)
 
-        # 5. استدعاء DeepSeek AI
+        # 5. Call DeepSeek AI
         ai_result = self.deepseek.analyze_market(
             symbol=symbol,
             timeframe=timeframe,
@@ -90,7 +90,7 @@ class MarketAnalyzer:
             news_context=news_context,
         )
 
-        # 6. دمج النتائج
+        # 6. Merge results
         result = {
             **ai_result,
             "symbol": symbol,
@@ -103,13 +103,13 @@ class MarketAnalyzer:
 
     def quick_scan(self, symbols: List[str] = None) -> List[Dict]:
         """
-        مسح سريع لعدة أصول
+        Quick scan of multiple assets
 
         Args:
-            symbols: قائمة الرموز (None = الكل)
+            symbols: List of symbols (None = all)
 
         Returns:
-            List: نتائج المسح لكل أصل
+            List: Scan results per asset
         """
         if symbols is None:
             symbols = list(config.symbols.keys())
@@ -117,7 +117,7 @@ class MarketAnalyzer:
         results = []
         for symbol in symbols:
             try:
-                # جلب سعر سريع فقط
+                # Quick price fetch only
                 if self.mt5:
                     tick = self.mt5.get_tick(symbol)
                     price = tick.get("bid", 0) if tick else 0
@@ -143,13 +143,13 @@ class MarketAnalyzer:
 
     def _fetch_market_data(self, symbol: str, timeframe: str,
                            bars_count: int) -> Optional[Dict]:
-        """جلب بيانات السوق من MT5"""
+        """Fetch market data from MT5"""
         if not self.mt5:
             logger.warning("MT5 bridge not connected, using simulated data")
             return self._simulate_market_data(symbol, bars_count)
 
         try:
-            # جلب الشموع
+            # Fetch candles
             rates = self.mt5.get_rates(symbol, timeframe, bars_count)
             if rates is None or len(rates) == 0:
                 logger.warning(f"No rates data for {symbol}")
@@ -159,11 +159,11 @@ class MarketAnalyzer:
             df.columns = ["time", "open", "high", "low", "close", "tick_volume",
                          "spread", "real_volume"]
 
-            # جلب السعر الحالي
+            # Get current price
             tick = self.mt5.get_tick(symbol) or {}
             current_price = tick.get("bid", df["close"].iloc[-1])
 
-            # حساب التغيير
+            # Calculate daily change
             daily_change = (current_price - df["open"].iloc[-1]) / df["open"].iloc[-1] * 100
 
             return {
@@ -182,10 +182,10 @@ class MarketAnalyzer:
             return None
 
     def _simulate_market_data(self, symbol: str, bars: int) -> Dict:
-        """محاكاة بيانات السوق للاختبار (بدون MT5)"""
+        """Simulate market data for testing (no MT5)"""
         import numpy as np
 
-        # أسعار تقريبية للاختبار
+        # Approximate prices for testing
         base_prices = {
             "XAUUSD": 2345.50,
             "EURUSD": 1.0850,
@@ -199,11 +199,11 @@ class MarketAnalyzer:
 
         np.random.seed(hash(symbol) % 2**32)
 
-        # توليد حركة سعر عشوائية واقعية
+        # Generate realistic random price movement
         returns = np.random.normal(0, volatility, bars)
         price_path = base * np.exp(np.cumsum(returns))
 
-        # إنشاء الشموع
+        # Create candles
         dates = pd.date_range(end=datetime.utcnow(), periods=bars, freq="15min")
         df = pd.DataFrame({
             "time": dates,
@@ -232,9 +232,9 @@ class MarketAnalyzer:
 
     def _get_news_context(self, symbol: str) -> Optional[str]:
         """
-        جلب سياق الأخبار الاقتصادية
-        (يمكن توصيله بـ API مثل ForexFactory أو Investing.com)
+        Fetch economic news context
+        (Can be connected to APIs like ForexFactory or Investing.com)
         """
-        # TODO: توصيل API الأخبار الحقيقي
-        # حالياً نرجع None لعدم وجود API متصل
+        # TODO: Connect real news API
+        # Currently returns None since no API is connected
         return None

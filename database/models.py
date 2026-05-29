@@ -1,5 +1,5 @@
 """
-Database Models - نماذج قاعدة البيانات
+Database Models
 """
 from datetime import datetime
 from sqlalchemy import (
@@ -29,7 +29,7 @@ class AIMode(str, enum.Enum):
 
 
 class User(Base):
-    """جدول المستخدمين"""
+    """Users table"""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -46,7 +46,7 @@ class User(Base):
 
 
 class Trade(Base):
-    """جدول الصفقات"""
+    """Trades table"""
     __tablename__ = "trades"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -70,8 +70,8 @@ class Trade(Base):
 
     # Status
     status = Column(String(20), default="open")  # open / closed / cancelled
-    ai_confidence = Column(Float, nullable=True, comment="نسبة ثقة الذكاء الاصطناعي (%)")
-    ai_reasoning = Column(Text, nullable=True, comment="تحليل الذكاء الاصطناعي")
+    ai_confidence = Column(Float, nullable=True, comment="AI confidence percentage (%)")
+    ai_reasoning = Column(Text, nullable=True, comment="AI reasoning/analysis")
 
     # Timestamps
     opened_at = Column(DateTime, default=datetime.utcnow)
@@ -83,7 +83,7 @@ class Trade(Base):
 
 
 class Setting(Base):
-    """جدول الإعدادات"""
+    """Settings table"""
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
@@ -97,7 +97,7 @@ class Setting(Base):
 
 
 class AIConfigModel(Base):
-    """جدول إعدادات الذكاء الاصطناعي لكل مستخدم"""
+    """AI configuration per user"""
     __tablename__ = "ai_configs"
 
     id = Column(Integer, primary_key=True)
@@ -116,7 +116,7 @@ class AIConfigModel(Base):
 
 
 class DailyPerformance(Base):
-    """جدول الأداء اليومي"""
+    """Daily performance table"""
     __tablename__ = "daily_performance"
 
     id = Column(Integer, primary_key=True)

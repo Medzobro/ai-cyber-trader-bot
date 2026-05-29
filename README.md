@@ -6,200 +6,208 @@
 </p>
 
 <h1 align="center">🤖 AI Cyber-Trader Bot</h1>
-<h3 align="center">بوت تليجرام للتداول الذكي باستخدام DeepSeek AI و MetaTrader 5</h3>
+<h3 align="center">Intelligent Trading Telegram Bot powered by DeepSeek AI & MetaTrader 5</h3>
 
 <p align="center">
-  <strong>نظام تداول آلي متكامل يجمع الذكاء الاصطناعي مع منصة MT5 في واجهة تليجرام تفاعلية</strong>
+  <strong>A fully automated trading system combining AI-driven market analysis with MT5 execution — all from an interactive Telegram interface</strong>
 </p>
 
 ---
 
-## 📑 جدول المحتويات
+## 📑 Table of Contents
 
-- [📋 نظرة عامة](#-نظرة-عامة)
-- [✨ المميزات](#-المميزات)
-- [🏗️ هيكل المشروع](#️-هيكل-المشروع)
-- [📦 المتطلبات](#-المتطلبات)
-- [🚀 طريقة التثبيت](#-طريقة-التثبيت)
-- [⚙️ الإعدادات](#️-الإعدادات)
-- [🎮 طريقة التشغيل](#-طريقة-التشغيل)
-- [📱 أوامر البوت](#-أوامر-البوت)
-- [🤖 إعدادات الذكاء الاصطناعي](#-إعدادات-الذكاء-الاصطناعي)
-- [🔒 إدارة المخاطر](#-إدارة-المخاطر)
-- [📂 هيكل الملفات](#-هيكل-الملفات)
-- [🛠️ التقنيات المستخدمة](#️-التقنيات-المستخدمة)
-- [⚠️ ملاحظات مهمة](#️-ملاحظات-مهمة)
-- [📄 الترخيص](#-الترخيص)
-
----
-
-## 📋 نظرة عامة
-
-**AI Cyber-Trader Bot** هو بوت تليجرام احترافي يعمل كلوحة تحكم ذكية لإدارة وتفعيل صفقات التداول الآلي (Forex/Gold) على منصة **MetaTrader 5** باستخدام محرك الذكاء الاصطناعي **DeepSeek AI** لتحليل السوق واتخاذ القرارات.
-
-يتكون النظام من ثلاثة أجزاء رئيسية:
-
-| الجزء | الوصف |
-|-------|-------|
-| 📱 **الواجهة** | واجهة تفاعلية داخل تليجرام بالأزرار المضمنة (Inline Keyboards) |
-| 🧠 **المحرك الخلفي** | خادم بايثون للتحليل المستمر باستخدام DeepSeek AI والمؤشرات الفنية |
-| 🔗 **جسر التداول** | برمجية تربط البوت بحساب MT5 لتنفيذ الصفقات |
+- [📋 Overview](#-overview)
+- [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [📦 Requirements](#-requirements)
+- [🚀 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+- [🎮 Running the Bot](#-running-the-bot)
+- [📱 Bot Commands](#-bot-commands)
+- [🤖 AI Configuration](#-ai-configuration)
+- [🔒 Risk Management](#-risk-management)
+- [📂 File Structure](#-file-structure)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [⚠️ Important Notes](#️-important-notes)
+- [🐛 Troubleshooting](#-troubleshooting)
+- [🔮 Roadmap](#-roadmap)
+- [📄 License](#-license)
 
 ---
 
-## ✨ المميزات
+## 📋 Overview
 
-### 🎛️ لوحة تحكم كاملة داخل تليجرام
-- لوحة رئيسية تفاعلية مع أزرار مضمنة
-- عرض الرصيد والأرباح اليومية والصفقات المفتوحة لحظة بلحظة
-- تحديث تلقائي للمعلومات
+**AI Cyber-Trader Bot** is a professional Telegram bot that serves as an intelligent control panel for managing and executing automated trading operations (Forex/Gold/Indices) on **MetaTrader 5**, powered by **DeepSeek AI** for market analysis and decision-making.
 
-### 🧠 محرك ذكاء اصطناعي متكامل
-- تكامل مع **DeepSeek API** لتحليل السوق
-- نماذج تحليل متعددة (تنبئي، أخبار، هجين)
-- مؤشرات فنية شاملة (RSI, MACD, Bollinger, ADX, ATR, Stochastic)
-- دعم **XGBoost** و **Scikit-Learn** للتعلم الآلي
-- تحديد نسبة الثقة الدنيا لدخول الصفقات (60% - 90%)
+The system consists of three core components:
 
-### 💹 دعم أصول متعددة
-| الرمز | الأصل |
-|-------|-------|
-| XAUUSD | 🏆 الذهب |
-| EURUSD | 💶 اليورو/دولار |
-| GBPUSD | 💷 الباوند/دولار |
-| USDJPY | 💴 الدولار/ين |
-| BTCUSD | ₿ بيتكوين |
-| US30 | 📊 داو جونز |
-| NAS100 | 📈 ناسداك |
-
-### 🔒 إدارة مخاطر متطورة
-- **زر الطوارئ** 🚨 لإغلاق جميع الصفقات فوراً
-- حد أقصى للخسارة اليومية (إيقاف تلقائي)
-- حد أقصى للصفقات المفتوحة
-- حساب تلقائي لحجم العقد المناسب
-- مستويات مخاطرة (منخفضة 🟢، متوسطة 🟡، مرتفعة 🟠، حرجة 🔴)
-
-### 📊 تقارير وأداء
-- تقرير أداء يومي وتفصيلي
-- سجل الصفقات مع الأرباح والخسائر
-- نسبة نجاح الصفقات
-- إشعارات فورية عند فتح/إغلاق الصفقات
-
-### 🔄 وضع المحاكاة
-- إمكانية التشغيل الكامل **بدون اتصال MT5 حقيقي**
-- بيانات سوق محاكاة للاختبار
-- مثالي للتجربة قبل ربط الحساب الحقيقي
+| Component | Description |
+|-----------|-------------|
+| 📱 **Frontend** | Fully interactive Telegram interface with inline keyboards |
+| 🧠 **Backend & AI** | Python server running continuous analysis with DeepSeek AI + technical indicators |
+| 🔗 **Execution Bridge** | Direct connection to MT5 for high-speed order execution |
 
 ---
 
-## 🏗️ هيكل المشروع
+## ✨ Features
+
+### 🎛️ Complete Telegram Dashboard
+- Interactive main dashboard with inline buttons
+- Real-time balance, daily P&L, and open positions display
+- Auto-refresh functionality
+
+### 🧠 AI Engine
+- **DeepSeek API** integration for market analysis
+- Multiple analysis modes (Predictive, News Scanning, Hybrid)
+- Comprehensive technical indicators (RSI, MACD, Bollinger, ADX, ATR, Stochastic)
+- **XGBoost** & **Scikit-Learn** support for ML predictions
+- Configurable confidence thresholds (60% - 90%)
+
+### 💹 Multi-Asset Support
+| Symbol | Asset |
+|--------|-------|
+| XAUUSD | 🏆 Gold |
+| EURUSD | 💶 EUR/USD |
+| GBPUSD | 💷 GBP/USD |
+| USDJPY | 💴 USD/JPY |
+| BTCUSD | ₿ Bitcoin |
+| US30 | 📊 Dow Jones |
+| NAS100 | 📈 Nasdaq |
+
+### 🔒 Advanced Risk Management
+- **Panic Button** 🚨 — instant close all positions
+- Daily loss limit (auto-stop)
+- Max open positions cap
+- Automatic position size calculation
+- Risk levels (Low 🟢, Medium 🟡, High 🟠, Critical 🔴)
+
+### 📊 Performance & Reports
+- Daily and all-time performance reports
+- Trade history with profit/loss tracking
+- Win rate statistics
+- Instant push notifications for trade open/close
+
+### 🔄 Simulation Mode
+- Full functionality **without a real MT5 connection**
+- Realistic market data simulation for testing
+- Perfect for trying all features risk-free
+
+---
+
+## 🏗️ Architecture
 
 ```
 ai-cyber-trader-bot/
 │
-├── 🧠 ai_engine/              # محرك الذكاء الاصطناعي
-│   ├── deepseek_client.py     # عميل DeepSeek API
-│   ├── indicators.py          # المؤشرات الفنية (RSI, MACD, ADX...)
-│   ├── market_analyzer.py     # محلل السوق الشامل
-│   └── predictor.py           # متنبئ AI + ML (XGBoost)
+├── 🧠 ai_engine/              # AI & ML Engine
+│   ├── deepseek_client.py     # DeepSeek API Client
+│   ├── indicators.py          # Technical Indicators (RSI, MACD, ADX...)
+│   ├── market_analyzer.py     # Market Analyzer (data + AI)
+│   └── predictor.py           # AI + ML Predictor (XGBoost)
 │
-├── 🤖 bot/                    # بوت تليجرام
-│   ├── handlers.py            # معالجات الأوامر والأزرار
-│   ├── keyboards.py           # لوحات المفاتيح التفاعلية
-│   ├── messages.py            # قوالب الرسائل والنصوص
-│   └── notifications.py       # مدير الإشعارات الفورية
+├── 🤖 bot/                    # Telegram Bot
+│   ├── handlers.py            # Command & Callback Handlers
+│   ├── keyboards.py           # Inline Keyboards
+│   ├── messages.py            # Message Templates
+│   └── notifications.py       # Push Notification Manager
 │
-├── 💹 trading/                # نظام التداول
-│   ├── mt5_bridge.py          # جسر التواصل مع MetaTrader 5
-│   ├── risk_manager.py        # مدير المخاطر
-│   └── trade_executor.py      # منفذ الصفقات
+├── 💹 trading/                # Trading System
+│   ├── mt5_bridge.py          # MetaTrader 5 Bridge
+│   ├── risk_manager.py        # Risk Manager
+│   └── trade_executor.py      # Trade Executor
 │
-├── 🗄️ database/               # قاعدة البيانات
-│   ├── models.py              # نماذج SQLAlchemy
-│   └── db_manager.py          # مدير قاعدة البيانات
+├── 🗄️ database/               # Database
+│   ├── models.py              # SQLAlchemy Models
+│   └── db_manager.py          # Database Manager
 │
-├── 🛠️ utils/                  # أدوات مساعدة
-│   ├── logger.py              # نظام التسجيل
-│   └── helpers.py             # دوال مساعدة
+├── 🛠️ utils/                  # Utilities
+│   ├── logger.py              # Logging System
+│   └── helpers.py             # Helper Functions
 │
-├── ⚙️ config.py               # إعدادات المشروع المركزية
-├── 🚀 main.py                 # نقطة الدخول الرئيسية
-├── 📦 requirements.txt        # المكتبات المطلوبة
-└── 📄 .env.example            # نموذج متغيرات البيئة
+├── ⚙️ config.py               # Central Configuration
+├── 🚀 main.py                 # Entry Point
+├── 📦 requirements.txt        # Dependencies
+└── 📄 .env.example            # Environment Variables Template
 ```
 
 ---
 
-## 📦 المتطلبات
+## 📦 Requirements
 
-| المتطلب | الإصدار | ملاحظة |
-|---------|---------|--------|
-| **Python** | 3.10 أو أحدث | ⚠️ إجباري |
-| **pip** | آخر إصدار | للتثبيت |
-| **MetaTrader 5** | أي إصدار | اختياري (للتداول الحقيقي) |
-| **DeepSeek API Key** | - | من [platform.deepseek.com](https://platform.deepseek.com) |
-| **Telegram Bot Token** | - | من [@BotFather](https://t.me/BotFather) |
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Python** | 3.10+ | ⚠️ Required |
+| **pip** | Latest | For package installation |
+| **MetaTrader 5** | Any | Optional (for live trading) |
+| **DeepSeek API Key** | — | From [platform.deepseek.com](https://platform.deepseek.com) |
+| **Telegram Bot Token** | — | From [@BotFather](https://t.me/BotFather) |
 
-> ℹ️ على أنظمة **Linux**، مكتبة MetaTrader5 تحتاج **Wine** للتشغيل. يمكنك استخدام وضع المحاكاة بدلاً من ذلك.
+> ℹ️ On **Linux**, the MetaTrader5 library requires **Wine** to run. You can use simulation mode instead.
 
 ---
 
-## 🚀 طريقة التثبيت
+## 🚀 Installation
 
-### الخطوة 1️⃣: استنساخ المشروع
+### Step 1️⃣: Clone the Repository
 
 ```bash
 git clone https://github.com/Medzobro/ai-cyber-trader-bot.git
 cd ai-cyber-trader-bot
 ```
 
-### الخطوة 2️⃣: إنشاء بيئة افتراضية وتفعيلها
+### Step 2️⃣: Create & Activate Virtual Environment
 
 ```bash
-# إنشاء البيئة الافتراضية
+# Create virtual environment
 python3 -m venv venv
 
-# تفعيلها:
-# على Linux / macOS:
+# Activate:
+# Linux / macOS:
 source venv/bin/activate
 
-# على Windows:
+# Windows:
 venv\Scripts\activate
 ```
 
-### الخطوة 3️⃣: تثبيت المكتبات
+### Step 3️⃣: Install Dependencies
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### الخطوة 4️⃣: إنشاء ملف الإعدادات `.env`
+### Step 4️⃣: Configure Environment Variables
 
 ```bash
 cp .env.example .env
-nano .env    # أو استخدم أي محرر نصوص
+nano .env    # or use any text editor
 ```
 
-### الخطوة 5️⃣: الحصول على المفاتيح المطلوبة
+Fill in the required API keys (see [Configuration](#️-configuration) below).
 
-#### 🤖 توكن بوت تليجرام:
-1. افتح تليجرام وتحدث مع [@BotFather](https://t.me/BotFather)
-2. أرسل `/newbot`
-3. اختر اسم البوت واسم المستخدم
-4. انسخ التوكن الذي يصلك
+### Step 5️⃣: Get Required API Keys
+
+#### 🤖 Telegram Bot Token:
+1. Open Telegram and chat with [@BotFather](https://t.me/BotFather)
+2. Send `/newbot`
+3. Choose a name and username for your bot
+4. Copy the token you receive
 
 #### 🧠 DeepSeek API Key:
-1. سجل في [platform.deepseek.com](https://platform.deepseek.com)
-2. اذهب إلى API Keys
-3. أنشئ مفتاح جديد وانسخه
+1. Sign up at [platform.deepseek.com](https://platform.deepseek.com)
+2. Navigate to API Keys
+3. Create a new key and copy it
 
-#### 💹 إعدادات MT5 (اختياري):
-- `MT5_LOGIN`: رقم حساب التداول
-- `MT5_PASSWORD`: كلمة مرور حساب التداول
-- `MT5_SERVER`: اسم السيرفر (مثال: `ICMarkets-Demo`)
+#### 💹 MT5 Credentials (Optional):
+- `MT5_LOGIN`: Your trading account number
+- `MT5_PASSWORD`: Your trading account password
+- `MT5_SERVER`: Broker server name (e.g., `ICMarkets-Demo`)
 
-### الخطوة 6️⃣: إعداد ملف `.env`
+---
+
+## ⚙️ Configuration
+
+Edit the `.env` file with your credentials:
 
 ```env
 # ─── Telegram ───────────────────────────────────
@@ -222,40 +230,40 @@ DB_PATH=data/trader_bot.db
 
 ---
 
-## 🎮 طريقة التشغيل
+## 🎮 Running the Bot
 
-### التشغيل المباشر:
+### Direct Run:
 
 ```bash
-# تأكد من تفعيل البيئة الافتراضية
+# Make sure virtual environment is activated
 source venv/bin/activate
 
-# تشغيل البوت
+# Start the bot
 python3 main.py
 ```
 
-ستظهر لك رسالة البانر:
+You'll see the startup banner:
 
 ```
 ╔══════════════════════════════════════════╗
 ║     🤖 AI Cyber-Trader Bot v1.0.0       ║
-║     نظام التداول الذكي - DeepSeek AI     ║
+║   Intelligent Trading System - DeepSeek AI ║
 ╚══════════════════════════════════════════╝
 ```
 
-### التشغيل كخدمة خلفية (Linux):
+### Run as Background Service (Linux):
 
 ```bash
-# استخدام nohup
+# Using nohup
 nohup python3 main.py > logs/bot.log 2>&1 &
 
-# أو استخدام screen/tmux
+# Or using screen/tmux
 screen -S trader
 python3 main.py
-# CTRL+A, D للانفصال
+# CTRL+A, D to detach
 ```
 
-### التشغيل مع Docker (قيد التطوير):
+### Run with Docker (coming soon):
 
 ```bash
 docker-compose up -d
@@ -263,211 +271,211 @@ docker-compose up -d
 
 ---
 
-## 📱 أوامر البوت
+## 📱 Bot Commands
 
-بعد تشغيل البوت، ابحث عنه في تليجرام وابدأ بالأوامر التالية:
+After starting the bot, find it on Telegram and use these commands:
 
-| الأمر | الوظيفة |
-|-------|---------|
-| `/start` | عرض لوحة التحكم الرئيسية |
-| `/help` | دليل المساعدة والأوامر |
-| `/status` | حالة البوت والصفقات الحالية |
-| `/analyze` | تحليل السوق الحالي باستخدام AI |
-| `/report` | عرض تقرير الأداء والأرباح |
-| `/settings` | عرض الإعدادات الحالية |
-| `/panic` | 🚨 زر الطوارئ - إغلاق جميع الصفقات |
+| Command | Function |
+|---------|----------|
+| `/start` | Display the main dashboard |
+| `/help` | Help guide and command list |
+| `/status` | Bot status and current positions |
+| `/analyze` | Analyze current market using AI |
+| `/report` | View performance & earnings report |
+| `/settings` | View current settings |
+| `/panic` | 🚨 Emergency — close all positions |
 
-### وصف الأزرار التفاعلية في اللوحة الرئيسية:
+### Interactive Dashboard Buttons:
 
 ```
 ┌──────────────────────────────────────────┐
-│  🚀 تشغيل التداول الآلي  │  🛑 إيقاف مؤقت  │
+│ 🚀 Start Auto Trading   │ 🛑 Pause        │
 ├──────────────────────────────────────────┤
-│ 🤖 إعدادات AI           │ ⚙️ إعدادات الصفقات │
+│ 🤖 AI Settings          │ ⚙️ Trade Setup   │
 ├──────────────────────────────────────────┤
-│ 📈 تقارير الأداء         │ 🔒 إدارة المخاطر   │
+│ 📈 Performance Reports  │ 🔒 Risk Mgmt     │
 ├──────────────────────────────────────────┤
-│ 📊 تحليل السوق الآن     │ 🔄 تحديث           │
+│ 📊 Analyze Market Now   │ 🔄 Refresh       │
 ├──────────────────────────────────────────┤
-│        🚨 إغلاق كل الصفقات فوراً           │
+│        🚨 Close All Positions Now          │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 🤖 إعدادات الذكاء الاصطناعي
+## 🤖 AI Configuration
 
-### نماذج التحليل المتاحة:
+### Analysis Modes:
 
-| النمط | الوصف |
-|-------|-------|
-| 🧠 **التحليل التنبئي الذكي** | توقع اتجاه الشمعة القادمة بناءً على المؤشرات الفنية والنماذج الرياضية |
-| 📰 **فحص الأخبار الفوري** | سحب الأخبار الاقتصادية وإيقاف التداول قبل الأخبار العنيفة |
-| 🔀 **هجين** | الجمع بين التحليل التنبئي وفحص الأخبار معاً |
+| Mode | Description |
+|------|-------------|
+| 🧠 **Predictive Analysis** | Predict next candle direction using technical indicators & mathematical models |
+| 📰 **News Scanning** | Fetch economic news and auto-pause trading before high-impact events |
+| 🔀 **Hybrid** | Combine predictive analysis with news scanning |
 
-### مستويات نسبة الثقة:
+### Confidence Thresholds:
 
-| المستوى | الوصف |
-|---------|-------|
-| **60%** | متساهل - فرص أكثر لكن مخاطرة أعلى |
-| **70%** | متوازن (افتراضي) |
-| **80%** | محافظ - إشارات أقوى فقط |
-| **90%** | حذر جداً - أقل عدد من الصفقات |
+| Level | Description |
+|-------|-------------|
+| **60%** | Relaxed — more signals, higher risk |
+| **70%** | Balanced (default) |
+| **80%** | Conservative — only strong signals |
+| **90%** | Very cautious — fewest trades |
 
-### المؤشرات الفنية المدعومة:
+### Supported Technical Indicators:
 
-- 📊 **RSI** - مؤشر القوة النسبية (تشبع شراء/بيع)
-- 📈 **MACD** - المتوسط المتحرك المتقارب المتباعد
-- 📉 **EMA/SMA** - المتوسطات المتحركة (9, 20, 50, 200)
-- 📊 **Bollinger Bands** - نطاقات بولينجر
-- 📐 **ADX** - مؤشر متوسط الحركة الاتجاهية
-- 📏 **ATR** - متوسط المدى الحقيقي (التقلب)
-- 🎯 **Stochastic** - مؤشر ستوكاستيك
-- 🕯️ **أنماط الشموع** - Doji, Hammer, Shooting Star, Engulfing
-
----
-
-## 🔒 إدارة المخاطر
-
-### مستويات المخاطرة:
-
-| المستوى | المعنى | الإجراء |
-|---------|--------|---------|
-| 🟢 **منخفضة** | التداول طبيعي | متابعة عادية |
-| 🟡 **متوسطة** | خسائر طفيفة | مراقبة مستمرة |
-| 🟠 **مرتفعة** | خسائر كبيرة | تقليل الصفقات |
-| 🔴 **حرجة** | تجاوز الحد | إيقاف تلقائي |
-
-### حدود الحماية:
-
-- ⚠️ **الحد الأقصى للخسارة اليومية:** 5% (قابل للتعديل)
-- 📦 **الحد الأعلى للصفقات المفتوحة:** 3 صفقات
-- 🛡️ **وقف الخسارة التلقائي:** 500 نقطة
-- 💰 **جني الأرباح التلقائي:** 800 نقطة
-- 🚨 **زر الطوارئ:** إغلاق فوري لكل المراكز
+- 📊 **RSI** — Relative Strength Index (Overbought/Oversold)
+- 📈 **MACD** — Moving Average Convergence Divergence
+- 📉 **EMA/SMA** — Moving Averages (9, 20, 50, 200)
+- 📊 **Bollinger Bands** — Volatility bands
+- 📐 **ADX** — Average Directional Index
+- 📏 **ATR** — Average True Range (volatility)
+- 🎯 **Stochastic** — Stochastic Oscillator
+- 🕯️ **Candlestick Patterns** — Doji, Hammer, Shooting Star, Engulfing
 
 ---
 
-## 📂 هيكل الملفات الكامل
+## 🔒 Risk Management
+
+### Risk Levels:
+
+| Level | Meaning | Action |
+|-------|---------|--------|
+| 🟢 **Low** | Normal trading | Standard monitoring |
+| 🟡 **Medium** | Minor losses | Active monitoring |
+| 🟠 **High** | Significant losses | Reduce positions |
+| 🔴 **Critical** | Limit exceeded | Auto-stop trading |
+
+### Protection Limits:
+
+- ⚠️ **Max Daily Loss:** 5% (configurable)
+- 📦 **Max Open Positions:** 3
+- 🛡️ **Auto Stop Loss:** 500 pips
+- 💰 **Auto Take Profit:** 800 pips
+- 🚨 **Panic Button:** Instant close all positions
+
+---
+
+## 📂 File Structure
 
 ```
 ai-cyber-trader-bot/
 │
-├── main.py                          # 🚀 نقطة الدخول الرئيسية
-├── config.py                        # ⚙️ إعدادات مركزية (dataclass)
-├── requirements.txt                 # 📦 قائمة المكتبات
-├── .env.example                     # 🔑 نموذج متغيرات البيئة
-├── .gitignore                       # 🙈 ملفات مستثناة من Git
-├── README.md                        # 📖 هذا الملف
+├── main.py                          # 🚀 Main entry point
+├── config.py                        # ⚙️ Central configuration (dataclass)
+├── requirements.txt                 # 📦 Dependencies list
+├── .env.example                     # 🔑 Environment variables template
+├── .gitignore                       # 🙈 Git ignore rules
+├── README.md                        # 📖 This file
 │
-├── ai_engine/                       # 🧠 محرك الذكاء الاصطناعي
+├── ai_engine/                       # 🧠 AI & ML Engine
 │   ├── __init__.py
-│   ├── deepseek_client.py           #   - عميل DeepSeek API (OpenAI-compatible)
-│   ├── indicators.py                #   - 8 مؤشرات فنية + أنماط الشموع
-│   ├── market_analyzer.py           #   - تحليل السوق + محاكاة بيانات
-│   └── predictor.py                 #   - توقع AI + XGBoost ML
+│   ├── deepseek_client.py           #   - DeepSeek API Client (OpenAI-compatible)
+│   ├── indicators.py                #   - 8 Technical Indicators + Candlestick Patterns
+│   ├── market_analyzer.py           #   - Market Analysis + Data Simulation
+│   └── predictor.py                 #   - AI Prediction + XGBoost ML
 │
-├── bot/                             # 🤖 واجهة تليجرام
+├── bot/                             # 🤖 Telegram Interface
 │   ├── __init__.py
-│   ├── handlers.py                  #   - 7 command handlers + 30+ callback handlers
-│   ├── keyboards.py                 #   - 15 لوحة أزرار تفاعلية
-│   ├── messages.py                  #   - 15+ قالب رسائل
-│   └── notifications.py            #   - إشعارات فورية + broadcast
+│   ├── handlers.py                  #   - 7 Command Handlers + 30+ Callback Handlers
+│   ├── keyboards.py                 #   - 15 Interactive Inline Keyboards
+│   ├── messages.py                  #   - 15+ Message Templates
+│   └── notifications.py            #   - Push Notifications + Broadcast
 │
-├── trading/                         # 💹 نظام التداول
+├── trading/                         # 💹 Trading System
 │   ├── __init__.py
-│   ├── mt5_bridge.py               #   - اتصال MT5 + وضع محاكاة كامل
-│   ├── risk_manager.py             #   - 7 فحوصات مخاطر + زر طوارئ
-│   └── trade_executor.py           #   - تنفيذ آلي + يدوي
+│   ├── mt5_bridge.py               #   - MT5 Connection + Full Simulation Mode
+│   ├── risk_manager.py             #   - 7 Risk Checks + Panic Mode
+│   └── trade_executor.py           #   - Automated + Manual Execution
 │
-├── database/                        # 🗄️ قاعدة البيانات
+├── database/                        # 🗄️ Database
 │   ├── __init__.py
-│   ├── models.py                   #   - 5 جداول (Users, Trades, Settings, AI, Performance)
-│   └── db_manager.py               #   - مدير CRUD مع context manager
+│   ├── models.py                   #   - 5 Tables (Users, Trades, Settings, AI, Performance)
+│   └── db_manager.py               #   - CRUD Manager with Context Manager
 │
-└── utils/                           # 🛠️ أدوات
+└── utils/                           # 🛠️ Utilities
     ├── __init__.py
-    ├── logger.py                    #   - نظام logging مركزي
-    └── helpers.py                   #   - تنسيق العملات والنسب
+    ├── logger.py                    #   - Centralized Logging System
+    └── helpers.py                   #   - Currency & Percentage Formatting
 ```
 
 ---
 
-## 🛠️ التقنيات المستخدمة
+## 🛠️ Tech Stack
 
-| التقنية | الاستخدام |
-|---------|-----------|
-| **Python 3.10+** | لغة البرمجة الأساسية |
-| **python-telegram-bot** | مكتبة تليجرام (Async) |
-| **OpenAI SDK** | التواصل مع DeepSeek API |
-| **SQLAlchemy** | ORM لقاعدة البيانات |
-| **SQLite** | قاعدة البيانات المحلية |
-| **Pandas & NumPy** | معالجة البيانات والمؤشرات |
-| **Scikit-Learn** | تعلم آلي ومعالجة |
-| **XGBoost** | نموذج تعلم آلي متقدم |
-| **MetaTrader5** | جسر منصة التداول |
-| **APScheduler** | جدولة المهام الدورية |
-| **python-dotenv** | إدارة متغيرات البيئة |
-
----
-
-## ⚠️ ملاحظات مهمة
-
-### 🔐 الأمان:
-- **لا تشارك ملف `.env` أبداً** - هو مضاف إلى `.gitignore`
-- استخدم كلمات مرور قوية لحساب MT5
-- احتفظ بنسخة احتياطية من ملف `.env`
-
-### 💰 التداول:
-- ⚠️ **ابدأ دائماً بحساب تجريبي (Demo) أولاً**
-- اختبر الاستراتيجية لمدة أسبوع على الأقل قبل الحساب الحقيقي
-- لا تخاطر بأكثر مما تستطيع تحمل خسارته
-- التداول الآلي ليس مضموناً 100%
-
-### 🖥️ نظام التشغيل:
-- **Windows:** تشغيل كامل مع MT5 حقيقي
-- **Linux:** يعمل بوضع المحاكاة (أو مع Wine لـ MT5)
-- **Mac:** يعمل بوضع المحاكاة
-
-### 🔄 وضع المحاكاة:
-إذا لم يتوفر اتصال MT5، يعمل البوت تلقائياً في **وضع المحاكاة**:
-- يولد بيانات سوق واقعية للاختبار
-- ينفذ صفقات وهمية
-- مثالي لتجربة كل ميزات البوت بدون مخاطرة
+| Technology | Usage |
+|------------|-------|
+| **Python 3.10+** | Core programming language |
+| **python-telegram-bot** | Telegram Bot API (Async) |
+| **OpenAI SDK** | DeepSeek API communication |
+| **SQLAlchemy** | Database ORM |
+| **SQLite** | Local database |
+| **Pandas & NumPy** | Data processing & indicators |
+| **Scikit-Learn** | ML preprocessing |
+| **XGBoost** | Advanced ML model |
+| **MetaTrader5** | Trading platform bridge |
+| **APScheduler** | Periodic task scheduling |
+| **python-dotenv** | Environment variable management |
 
 ---
 
-## 🐛 استكشاف الأخطاء
+## ⚠️ Important Notes
+
+### 🔐 Security:
+- **Never share your `.env` file** — it's already in `.gitignore`
+- Use strong passwords for your MT5 account
+- Keep a backup of your `.env` file
+
+### 💰 Trading:
+- ⚠️ **Always start with a Demo account first**
+- Test the strategy for at least a week before going live
+- Never risk more than you can afford to lose
+- Automated trading is not 100% guaranteed
+
+### 🖥️ Operating System:
+- **Windows:** Full functionality with real MT5
+- **Linux:** Works in simulation mode (or with Wine for MT5)
+- **Mac:** Works in simulation mode
+
+### 🔄 Simulation Mode:
+If no MT5 connection is available, the bot automatically runs in **simulation mode**:
+- Generates realistic market data for testing
+- Executes virtual trades
+- Perfect for exploring all features risk-free
+
+---
+
+## 🐛 Troubleshooting
 
 <details>
-<summary><b>❌ خطأ: TELEGRAM_BOT_TOKEN غير مضبوط</b></summary>
+<summary><b>❌ Error: TELEGRAM_BOT_TOKEN not set</b></summary>
 
-تأكد من إنشاء ملف `.env` وإضافة التوكن الصحيح:
+Make sure you created the `.env` file and added the correct token:
 ```bash
 cp .env.example .env
-nano .env  # أضف TELEGRAM_BOT_TOKEN=توكن_بوتك
+nano .env  # Add TELEGRAM_BOT_TOKEN=your_bot_token
 ```
 </details>
 
 <details>
-<summary><b>❌ خطأ: DeepSeek API Key غير صالح</b></summary>
+<summary><b>❌ Error: Invalid DeepSeek API Key</b></summary>
 
-- تأكد من المفتاح في `.env`: `DEEPSEEK_API_KEY=sk-...`
-- تأكد من وجود رصيد في حساب DeepSeek
-- جرب الاتصال يدوياً من [platform.deepseek.com](https://platform.deepseek.com)
+- Verify the key in `.env`: `DEEPSEEK_API_KEY=sk-...`
+- Make sure you have credits in your DeepSeek account
+- Test the connection manually at [platform.deepseek.com](https://platform.deepseek.com)
 </details>
 
 <details>
-<summary><b>❌ فشل في import MetaTrader5</b></summary>
+<summary><b>❌ MetaTrader5 import failed</b></summary>
 
-هذا طبيعي على Linux. البوت سيعمل تلقائياً في وضع المحاكاة.
-للتداول الحقيقي على Linux، تحتاج Wine + MT5 أو MetaAPI.
+This is normal on Linux. The bot will automatically run in simulation mode.
+For live trading on Linux, you need Wine + MT5 or MetaAPI.
 </details>
 
 <details>
-<summary><b>❌ خطأ: sqlite3.OperationalError</b></summary>
+<summary><b>❌ Error: sqlite3.OperationalError</b></summary>
 
-تأكد من وجود مجلد `data/` وأن لديك صلاحيات الكتابة:
+Make sure the `data/` directory exists and is writable:
 ```bash
 mkdir -p data logs
 chmod 755 data logs
@@ -476,29 +484,29 @@ chmod 755 data logs
 
 ---
 
-## 🔮 خارطة الطريق
+## 🔮 Roadmap
 
-- [ ] نظام backtesting على بيانات تاريخية
-- [ ] دعم MetaAPI للسيرفرات السحابية
-- [ ] تكامل أخبار اقتصادية حقيقي (ForexFactory API)
-- [ ] لوحة تحكم ويب (Web Dashboard)
-- [ ] دعم Docker و docker-compose
-- [ ] إشعارات عبر البريد الإلكتروني
-- [ ] دعم تعدد المستخدمين مع صلاحيات
-- [ ] نسخ استراتيجيات التداول ومشاركتها
+- [ ] Historical data backtesting system
+- [ ] MetaAPI support for cloud servers
+- [ ] Real economic news integration (ForexFactory API)
+- [ ] Web Dashboard
+- [ ] Docker & docker-compose support
+- [ ] Email notifications
+- [ ] Multi-user support with permissions
+- [ ] Trading strategy sharing & cloning
 
 ---
 
-## 📄 الترخيص
+## 📄 License
 
-هذا المشروع مرخص تحت [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 <p align="center">
-  <strong>⚡ تم البناء بواسطة <a href="https://github.com/Medzobro">Medzobro</a> | 2025 ⚡</strong>
+  <strong>⚡ Built by <a href="https://github.com/Medzobro">Medzobro</a> | 2025 ⚡</strong>
 </p>
 
 <p align="center">
-  <sub>🤖 AI Cyber-Trader Bot - لأن التداول الذكي يبدأ من هنا</sub>
+  <sub>🤖 AI Cyber-Trader Bot — Because Smart Trading Starts Here</sub>
 </p>

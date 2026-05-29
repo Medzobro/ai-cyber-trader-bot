@@ -1,7 +1,7 @@
 """
-Telegram Bot Handlers - معالجات البوت
-======================================
-جميع handlers و callbacks للبوت
+Telegram Bot Handlers
+======================
+All command handlers and callbacks for the bot
 """
 import traceback
 from datetime import datetime
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 class TelegramBot:
-    """بوت تليجرام الرئيسي"""
+    """Main Telegram bot"""
 
     def __init__(self, mt5_bridge=None, risk_manager=None,
                  trade_executor=None, market_analyzer=None,
@@ -37,17 +37,17 @@ class TelegramBot:
         self.predictor = predictor
         self.notifications = NotificationManager()
 
-        # حالات التداول الآلي
+        # Auto trading states
         self.auto_trading: Dict[int, bool] = {}
 
-        # مهام التداول المجدولة
+        # Scheduled trading jobs
         self.scheduled_jobs: Dict[int, Any] = {}
 
         self.app: Optional[Application] = None
         self.db = get_db()
 
     async def start(self):
-        """بدء البوت"""
+        """Start the bot"""
         token = config.telegram.bot_token
 
         if token == "YOUR_TELEGRAM_BOT_TOKEN":
@@ -57,21 +57,21 @@ class TelegramBot:
         self.app = Application.builder().token(token).build()
         self.notifications.set_app(self.app)
 
-        # تسجيل المعالجات
+        # Register handlers
         self._register_handlers()
 
         logger.info("✅ Telegram bot started. Waiting for commands...")
         await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def stop(self):
-        """إيقاف البوت"""
+        """Stop the bot"""
         if self.app:
             await self.app.stop()
             await self.app.shutdown()
         logger.info("🛑 Bot stopped")
 
     def _register_handlers(self):
-        """تسجيل جميع معالجات الأوامر والأزرار"""
+        """Register all command and callback handlers"""
         # Commands
         self.app.add_handler(CommandHandler("start", self.cmd_start))
         self.app.add_handler(CommandHandler("help", self.cmd_help))
@@ -95,27 +95,27 @@ class TelegramBot:
     # ─── Command Handlers ─────────────────────────
 
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /start - القائمة الرئيسية"""
+        """/start command - Main dashboard"""
         user = update.effective_user
         db = get_db()
         db_user = db.get_or_create_user(
             user.id, user.username, user.first_name
         )
 
-        # إعدادات المستخدم الافتراضية
+        # Default user settings
         lot = db.get_setting(user.id, "lot", str(config.trading.default_lot))
         direction = db.get_setting(user.id, "direction", "both")
         symbol = db.get_setting(user.id, "symbol", config.trading.default_symbol)
 
-        # معلومات الحساب
+        # Account info
         balance = self.mt5.get_balance() if self.mt5 else 42500.0
         account_type = "MT5 Real" if self.mt5 and not self.mt5.simulation else "MT5 Demo"
 
-        # أداء اليوم
+        # Today's performance
         today = db.get_today_performance(user.id)
         open_trades = db.get_open_trades_count(user.id)
 
-        # حالة البوت
+        # Bot status
         auto_running = self.auto_trading.get(user.id, False)
         bot_status = "🟢 ONLINE" if self.mt5 and self.mt5.is_connected() else "🟡 SIMULATION"
 
@@ -136,7 +136,7 @@ class TelegramBot:
         )
 
     async def cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /help"""
+        """/help command"""
         await update.message.reply_text(
             Messages.help_message(),
             reply_markup=Keyboards.back_button(),
@@ -144,7 +144,7 @@ class TelegramBot:
         )
 
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /status"""
+        """/status command"""
         user = update.effective_user
         db = get_db()
         user_id = user.id
@@ -155,12 +155,12 @@ class TelegramBot:
         auto_running = self.auto_trading.get(user_id, False)
 
         status_text = (
-            "📊 **حالة النظام**\n\n"
-            f"🔹 **البوت:** {'🟢 يعمل' if self.app else '🔴 متوقف'}\n"
-            f"🔹 **التداول الآلي:** {'🟢 مفعل' if auto_running else '🔴 متوقف'}\n"
-            f"🔹 **MT5:** {'✅ متصل' if self.mt5 and self.mt5.is_connected() else '🟡 محاكاة'}\n"
-            f"🔹 **صفقات مفتوحة:** {open_trades_count}\n"
-            f"🔹 **مستوى المخاطرة:** {risk_status.get('risk_level', 'N/A')}\n"
+            "📊 **System Status**\n\n"
+            f"🔹 **Bot:** {'🟢 Running' if self.app else '🔴 Stopped'}\n"
+            f"🔹 **Auto Trading:** {'🟢 Active' if auto_running else '🔴 Stopped'}\n"
+            f"🔹 **MT5:** {'✅ Connected' if self.mt5 and self.mt5.is_connected() else '🟡 Simulation'}\n"
+            f"🔹 **Open Positions:** {open_trades_count}\n"
+            f"🔹 **Risk Level:** {risk_status.get('risk_level', 'N/A')}\n"
         )
 
         await update.message.reply_text(
@@ -170,7 +170,7 @@ class TelegramBot:
         )
 
     async def cmd_analyze(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /analyze - تحليل السوق الحالي"""
+        """/analyze command - Analyze current market"""
         user = update.effective_user
         user_id = user.id
         db = get_db()
@@ -179,12 +179,12 @@ class TelegramBot:
         tf = db.get_setting(user_id, "timeframe", "M15")
 
         if not self.analyzer:
-            await update.message.reply_text("❌ محلل السوق غير مهيأ")
+            await update.message.reply_text("❌ Market analyzer not initialized")
             return
 
-        # إرسال رسالة انتظار
+        # Send waiting message
         sent_msg = await update.message.reply_text(
-            f"⏳ جاري تحليل {symbol} ({tf}) باستخدام DeepSeek AI...",
+            f"⏳ Analyzing {symbol} ({tf}) with DeepSeek AI...",
         )
 
         try:
@@ -200,12 +200,12 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Analysis error: {e}")
             await sent_msg.edit_text(
-                f"❌ خطأ في التحليل: {e}",
+                f"❌ Analysis error: {e}",
                 reply_markup=Keyboards.back_button(),
             )
 
     async def cmd_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /report"""
+        """/report command"""
         user = update.effective_user
         db = get_db()
         user_id = user.id
@@ -223,7 +223,7 @@ class TelegramBot:
         )
 
     async def cmd_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /settings"""
+        """/settings command"""
         user = update.effective_user
         db = get_db()
         user_id = user.id
@@ -241,10 +241,10 @@ class TelegramBot:
         )
 
     async def cmd_panic(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """أمر /panic - زر الطوارئ"""
+        """/panic command - Emergency close all"""
         await update.message.reply_text(
-            "🚨 **تحذير: هل أنت متأكد من إغلاق جميع الصفقات المفتوحة؟**\n\n"
-            "سيتم إغلاق جميع المراكز فوراً بسعر السوق.",
+            "🚨 **WARNING: Are you sure you want to close ALL open positions?**\n\n"
+            "All positions will be closed immediately at market price.",
             reply_markup=Keyboards.confirm_panic(),
             parse_mode="Markdown",
         )
@@ -252,7 +252,7 @@ class TelegramBot:
     # ─── Callback Handler ─────────────────────────
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """معالج الأزرار الرئيسي"""
+        """Main callback handler for all inline buttons"""
         query = update.callback_query
         await query.answer()
 
@@ -285,7 +285,7 @@ class TelegramBot:
                 await self._handle_direction_select(query, user_id, data)
             elif data == "symbols_indices":
                 await query.edit_message_text(
-                    "📊 اختر المؤشر:",
+                    "📊 Select Index:",
                     reply_markup=Keyboards.indices_symbols(),
                 )
 
@@ -300,14 +300,14 @@ class TelegramBot:
                 await self._show_ai_config(query, user_id)
             elif data == "ai_confidence":
                 await query.edit_message_text(
-                    "🎯 اختر الحد الأدنى لنسبة الثقة:",
+                    "🎯 Select minimum confidence threshold:",
                     reply_markup=Keyboards.confidence_levels(),
                 )
             elif data.startswith("conf_"):
                 await self._handle_confidence_select(query, user_id, data)
             elif data == "ai_model":
                 await query.edit_message_text(
-                    "🧠 اختر نمط التحليل:",
+                    "🧠 Select analysis mode:",
                     reply_markup=Keyboards.analysis_modes(),
                 )
             elif data.startswith("mode_"):
@@ -316,7 +316,7 @@ class TelegramBot:
                 await self._toggle_news(query, user_id)
             elif data == "ai_timeframe":
                 await query.edit_message_text(
-                    "⏱️ اختر الإطار الزمني للتحليل:",
+                    "⏱️ Select analysis timeframe:",
                     reply_markup=Keyboards.timeframes(),
                 )
             elif data.startswith("tf_"):
@@ -325,7 +325,7 @@ class TelegramBot:
                 await self._toggle_backtest(query, user_id)
             elif data == "ai_train":
                 await query.edit_message_text(
-                    "🚧 جاري تطوير هذه الميزة...\nتدريب نموذج ML على البيانات التاريخية.",
+                    "🚧 This feature is under development...\nTraining ML model on historical data.",
                     reply_markup=Keyboards.back_button("menu_ai"),
                 )
 
@@ -341,12 +341,12 @@ class TelegramBot:
                 balance = self.mt5.get_balance() if self.mt5 else 42500.0
                 pnl_pct = (daily["total_pnl"] / balance * 100) if balance > 0 else 0
                 text = (
-                    "📅 **أداء اليوم**\n\n"
-                    f"💰 الأرباح: {format_currency(daily['total_pnl'])} ({format_percentage(pnl_pct)})\n"
-                    f"📊 الصفقات: {daily['total_trades']}\n"
-                    f"✅ الرابحة: {daily['winning_trades']}\n"
-                    f"❌ الخاسرة: {daily['losing_trades']}\n"
-                    f"🎯 نسبة النجاح: {daily['win_rate']:.1f}%"
+                    "📅 **Today's Performance**\n\n"
+                    f"💰 P&L: {format_currency(daily['total_pnl'])} ({format_percentage(pnl_pct)})\n"
+                    f"📊 Trades: {daily['total_trades']}\n"
+                    f"✅ Winners: {daily['winning_trades']}\n"
+                    f"❌ Losers: {daily['losing_trades']}\n"
+                    f"🎯 Win Rate: {daily['win_rate']:.1f}%"
                 )
                 await query.edit_message_text(
                     text,
@@ -356,12 +356,12 @@ class TelegramBot:
             elif data == "report_all":
                 all_time = db.get_all_time_performance(user_id)
                 text = (
-                    "📈 **الأداء الكلي**\n\n"
-                    f"💰 إجمالي الأرباح: {format_currency(all_time['total_pnl'])}\n"
-                    f"📊 إجمالي الصفقات: {all_time['total_trades']}\n"
-                    f"✅ الرابحة: {all_time['winning_trades']}\n"
-                    f"❌ الخاسرة: {all_time['losing_trades']}\n"
-                    f"🎯 نسبة النجاح: {all_time['win_rate']:.1f}%"
+                    "📈 **All-Time Performance**\n\n"
+                    f"💰 Total P&L: {format_currency(all_time['total_pnl'])}\n"
+                    f"📊 Total Trades: {all_time['total_trades']}\n"
+                    f"✅ Winners: {all_time['winning_trades']}\n"
+                    f"❌ Losers: {all_time['losing_trades']}\n"
+                    f"🎯 Win Rate: {all_time['win_rate']:.1f}%"
                 )
                 await query.edit_message_text(
                     text,
@@ -377,10 +377,10 @@ class TelegramBot:
                 )
             elif data == "report_backtest":
                 await query.edit_message_text(
-                    "🧪 **وضع المحاكاة (Backtest)**\n\n"
-                    "هذه الميزة تسمح بتشغيل استراتيجية التداول على بيانات تاريخية\n"
-                    "لتقييم الأداء قبل المخاطرة بأموال حقيقية.\n\n"
-                    "🚧 قيد التطوير...",
+                    "🧪 **Backtest Mode**\n\n"
+                    "This feature allows running the trading strategy on historical data\n"
+                    "to evaluate performance before risking real funds.\n\n"
+                    "🚧 Under development...",
                     reply_markup=Keyboards.back_button("menu_reports"),
                 )
 
@@ -391,25 +391,25 @@ class TelegramBot:
                 await self._show_risk_status(query, user_id)
             elif data == "risk_daily_loss":
                 await query.edit_message_text(
-                    "⚠️ **حد الخسارة اليومية**\n\n"
-                    f"الحد الحالي: {config.trading.max_daily_loss}%\n"
-                    "عند تجاوز هذا الحد، يتوقف التداول تلقائياً لليوم.\n\n"
-                    "🚧 قيد التطوير...",
+                    "⚠️ **Daily Loss Limit**\n\n"
+                    f"Current limit: {config.trading.max_daily_loss}%\n"
+                    "When this limit is exceeded, trading stops automatically for the day.\n\n"
+                    "🚧 Under development...",
                     reply_markup=Keyboards.risk_menu(),
                 )
             elif data == "risk_max_trades":
                 await query.edit_message_text(
-                    "📦 **الحد الأعلى للصفقات المفتوحة**\n\n"
-                    f"الحد الحالي: {config.trading.max_open_trades} صفقات\n\n"
-                    "🚧 قيد التطوير...",
+                    "📦 **Max Open Positions**\n\n"
+                    f"Current limit: {config.trading.max_open_trades} positions\n\n"
+                    "🚧 Under development...",
                     reply_markup=Keyboards.risk_menu(),
                 )
 
             # Panic
             elif data == "panic":
                 await query.edit_message_text(
-                    "🚨 **تحذير: إغلاق كل الصفقات فوراً**\n\n"
-                    "سيتم إغلاق جميع المراكز المفتوحة بسعر السوق.",
+                    "🚨 **WARNING: Close ALL Positions Immediately**\n\n"
+                    "All open positions will be closed at market price.",
                     reply_markup=Keyboards.confirm_panic(),
                     parse_mode="Markdown",
                 )
@@ -419,14 +419,14 @@ class TelegramBot:
                     if self.mt5:
                         closed = self.mt5.close_all_positions()
                     await query.edit_message_text(
-                        f"🚨 **تم تنفيذ أمر الطوارئ!**\n\nتم إغلاق {closed} صفقة بنجاح.\n"
-                        "وضع الطوارئ مفعل - التداول متوقف.",
+                        f"🚨 **Emergency order executed!**\n\n{closed} position(s) closed successfully.\n"
+                        "Panic mode active - trading stopped.",
                         reply_markup=Keyboards.back_button(),
                         parse_mode="Markdown",
                     )
                 else:
                     await query.edit_message_text(
-                        "❌ مدير المخاطر غير مهيأ",
+                        "❌ Risk manager not initialized",
                         reply_markup=Keyboards.back_button(),
                     )
 
@@ -436,7 +436,7 @@ class TelegramBot:
 
             else:
                 await query.edit_message_text(
-                    f"⚠️ أمر غير معروف: {data}",
+                    f"⚠️ Unknown command: {data}",
                     reply_markup=Keyboards.back_button(),
                 )
 
@@ -444,7 +444,7 @@ class TelegramBot:
             logger.error(f"Callback error: {e}\n{traceback.format_exc()}")
             try:
                 await query.edit_message_text(
-                    f"❌ حدث خطأ: {e}",
+                    f"❌ An error occurred: {e}",
                     reply_markup=Keyboards.back_button(),
                 )
             except Exception:
@@ -453,19 +453,19 @@ class TelegramBot:
     # ─── Message Handler ──────────────────────────
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """معالج الرسائل النصية"""
+        """Text message handler"""
         user = update.effective_user
         user_id = user.id
         text = update.message.text.strip()
         db = get_db()
 
-        # إذا كان في انتظار إدخال اللوت المخصص
+        # If awaiting custom lot input
         if context.user_data.get("awaiting_lot"):
             try:
                 lot = float(text)
                 if lot < config.trading.min_lot or lot > config.trading.max_lot:
                     await update.message.reply_text(
-                        f"⚠️ اللوت يجب أن يكون بين {config.trading.min_lot} و {config.trading.max_lot}",
+                        f"⚠️ Lot must be between {config.trading.min_lot} and {config.trading.max_lot}",
                         reply_markup=Keyboards.lot_sizes(),
                     )
                     return
@@ -477,21 +477,21 @@ class TelegramBot:
                 direction = db.get_setting(user_id, "direction", "both")
 
                 await update.message.reply_text(
-                    f"✅ تم تعيين اللوت إلى: **{lot}**\n\n"
+                    f"✅ Lot size set to: **{lot}**\n\n"
                     + Messages.trading_settings(symbol, lot, direction),
                     reply_markup=Keyboards.trading_setup(),
                     parse_mode="Markdown",
                 )
             except ValueError:
                 await update.message.reply_text(
-                    "❌ يرجى إدخال رقم صحيح. مثال: `0.25`",
+                    "❌ Please enter a valid number. Example: `0.25`",
                     reply_markup=Keyboards.lot_sizes(),
                 )
 
     # ─── Error Handler ────────────────────────────
 
     async def handle_error(self, update: object, context: ContextTypes.DEFAULT_TYPE):
-        """معالج الأخطاء"""
+        """Error handler"""
         logger.error(f"Update {update} caused error: {context.error}")
         if context.error:
             logger.error(traceback.format_exception(None, context.error, context.error.__traceback__))
@@ -499,7 +499,7 @@ class TelegramBot:
     # ─── Helper Methods ───────────────────────────
 
     async def _show_dashboard(self, query, user_id: int):
-        """عرض لوحة التحكم الرئيسية"""
+        """Show main dashboard"""
         db = get_db()
         symbol = db.get_setting(user_id, "symbol", "XAUUSD")
 
@@ -527,7 +527,7 @@ class TelegramBot:
         )
 
     async def _show_trade_settings(self, query, user_id: int):
-        """عرض إعدادات التداول"""
+        """Show trading settings"""
         db = get_db()
         symbol = db.get_setting(user_id, "symbol", "XAUUSD")
         lot = float(db.get_setting(user_id, "lot", str(config.trading.default_lot)))
@@ -541,7 +541,7 @@ class TelegramBot:
         )
 
     async def _show_ai_config(self, query, user_id: int):
-        """عرض إعدادات الذكاء الاصطناعي"""
+        """Show AI configuration"""
         db = get_db()
         ai_cfg = db.get_ai_config(user_id)
 
@@ -560,7 +560,7 @@ class TelegramBot:
         )
 
     async def _show_risk_status(self, query, user_id: int):
-        """عرض حالة المخاطر"""
+        """Show risk status"""
         risk_status = self.risk.get_risk_status(user_id) if self.risk else {}
 
         text = Messages.risk_status(risk_status)
@@ -571,7 +571,7 @@ class TelegramBot:
         )
 
     async def _show_reports(self, query, user_id: int):
-        """عرض قائمة التقارير"""
+        """Show reports menu"""
         db = get_db()
         daily = db.get_today_performance(user_id)
         all_time = db.get_all_time_performance(user_id)
@@ -587,42 +587,42 @@ class TelegramBot:
     # ─── Action Handlers ──────────────────────────
 
     async def _handle_symbol_select(self, query, user_id: int, data: str):
-        """اختيار الأصل"""
+        """Handle symbol selection"""
         symbol = data.replace("symbol_", "")
         db = get_db()
         db.set_setting(user_id, "symbol", symbol)
 
         symbol_name = config.symbols.get(symbol, symbol)
-        await query.answer(f"✅ تم اختيار {symbol_name}")
+        await query.answer(f"✅ Selected: {symbol_name}")
         await self._show_trade_settings(query, user_id)
 
     async def _handle_lot_select(self, query, user_id: int, data: str):
-        """اختيار حجم اللوت"""
+        """Handle lot size selection"""
         lot = float(data.replace("lot_", ""))
         db = get_db()
         db.set_setting(user_id, "lot", str(lot))
-        await query.answer(f"✅ اللوت: {lot}")
+        await query.answer(f"✅ Lot: {lot}")
         await self._show_trade_settings(query, user_id)
 
     async def _handle_direction_select(self, query, user_id: int, data: str):
-        """اختيار اتجاه التداول"""
+        """Handle direction selection"""
         direction = data.replace("dir_", "")
         db = get_db()
         db.set_setting(user_id, "direction", direction)
 
-        names = {"buy": "الشراء فقط 🟢", "sell": "البيع فقط 🔴", "both": "الاتجاهين 🔄"}
+        names = {"buy": "Buy Only 🟢", "sell": "Sell Only 🔴", "both": "Both Directions 🔄"}
         await query.answer(f"✅ {names.get(direction, direction)}")
         await self._show_trade_settings(query, user_id)
 
     async def _handle_auto_start(self, query, user_id: int):
-        """تشغيل التداول الآلي"""
-        # التحقق من الـ API Key
+        """Start auto trading"""
+        # Check API Key
         if config.deepseek.api_key == "YOUR_DEEPSEEK_API_KEY":
             await query.edit_message_text(
-                "❌ **يجب إدخال DeepSeek API Key أولاً**\n\n"
-                "1. قم بإنشاء ملف `.env` في مجلد المشروع\n"
-                "2. أضف: `DEEPSEEK_API_KEY=sk-xxxxxxxx`\n"
-                "3. أعد تشغيل البوت",
+                "❌ **DeepSeek API Key required!**\n\n"
+                "1. Create a `.env` file in the project folder\n"
+                "2. Add: `DEEPSEEK_API_KEY=sk-xxxxxxxx`\n"
+                "3. Restart the bot",
                 reply_markup=Keyboards.back_button(),
                 parse_mode="Markdown",
             )
@@ -630,7 +630,7 @@ class TelegramBot:
 
         if not self.analyzer or not self.executor:
             await query.edit_message_text(
-                "❌ مكونات التداول غير مهيأة",
+                "❌ Trading components not initialized",
                 reply_markup=Keyboards.back_button(),
             )
             return
@@ -639,51 +639,51 @@ class TelegramBot:
         if self.risk:
             self.risk.resume_trading(user_id)
 
-        await query.answer("✅ تم تشغيل التداول الآلي")
+        await query.answer("✅ Auto trading started")
 
-        # تنفيذ أول تحليل فوري
+        # Execute first analysis immediately
         await self._handle_analyze_now(query, user_id, auto_mode=True)
 
     async def _handle_auto_stop(self, query, user_id: int):
-        """إيقاف التداول الآلي"""
+        """Stop auto trading"""
         self.auto_trading[user_id] = False
         if self.risk:
             self.risk.pause_trading(user_id)
 
-        await query.answer("⏸️ تم إيقاف التداول الآلي")
+        await query.answer("⏸️ Auto trading paused")
         await self._show_dashboard(query, user_id)
 
     async def _handle_analyze_now(self, query, user_id: int, auto_mode: bool = False):
-        """تحليل السوق الآن"""
+        """Analyze market now"""
         db = get_db()
         symbol = db.get_setting(user_id, "symbol", "XAUUSD")
         tf = db.get_setting(user_id, "timeframe", "M15")
 
         if not self.analyzer:
             await query.edit_message_text(
-                "❌ محلل السوق غير مهيأ",
+                "❌ Market analyzer not initialized",
                 reply_markup=Keyboards.back_button(),
             )
             return
 
         await query.edit_message_text(
-            f"⏳ جاري تحليل {symbol} ({tf}) باستخدام DeepSeek AI...",
+            f"⏳ Analyzing {symbol} ({tf}) with DeepSeek AI...",
         )
 
         try:
-            # تحليل السوق
+            # Analyze market
             result = self.analyzer.analyze(symbol, tf, user_id=user_id)
 
             if result.get("error"):
                 await query.edit_message_text(
-                    f"❌ {result.get('message', 'خطأ')}",
+                    f"❌ {result.get('message', 'Error')}",
                     reply_markup=Keyboards.main_dashboard(),
                 )
                 return
 
             analysis_text = Messages.analysis_result(result)
 
-            # إذا كان التداول الآلي مفعل والثقة كافية
+            # If auto trading is active and confidence is sufficient
             trade_executed = False
             if auto_mode and self.executor and self.auto_trading.get(user_id):
                 confidence = result.get("confidence", 0)
@@ -697,7 +697,7 @@ class TelegramBot:
                         analysis_text += "\n\n───\n" + trade_result["message"]
                         trade_executed = True
 
-                        # إشعار
+                        # Send notification
                         if trade_result.get("trade"):
                             await self.notifications.send_trade_opened(
                                 user_id, trade_result["trade"]
@@ -714,54 +714,54 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Analysis error: {e}")
             await query.edit_message_text(
-                f"❌ خطأ: {e}",
+                f"❌ Error: {e}",
                 reply_markup=Keyboards.back_button(),
             )
 
     async def _handle_confidence_select(self, query, user_id: int, data: str):
-        """تحديد نسبة الثقة"""
+        """Handle confidence threshold selection"""
         confidence = float(data.replace("conf_", ""))
         db = get_db()
         db.update_ai_config(user_id, confidence_threshold=confidence)
-        await query.answer(f"✅ الحد الأدنى للثقة: {confidence:.0f}%")
+        await query.answer(f"✅ Min confidence: {confidence:.0f}%")
         await self._show_ai_config(query, user_id)
 
     async def _handle_mode_select(self, query, user_id: int, data: str):
-        """تحديد نمط التحليل"""
+        """Handle analysis mode selection"""
         mode = data.replace("mode_", "")
         db = get_db()
         db.update_ai_config(user_id, analysis_mode=mode)
 
         names = {
-            "predictive": "التحليل التنبئي",
-            "news_scanning": "فحص الأخبار",
-            "hybrid": "الهجين",
+            "predictive": "Predictive Analysis",
+            "news_scanning": "News Scanning",
+            "hybrid": "Hybrid",
         }
-        await query.answer(f"✅ نمط التحليل: {names.get(mode, mode)}")
+        await query.answer(f"✅ Analysis mode: {names.get(mode, mode)}")
         await self._show_ai_config(query, user_id)
 
     async def _toggle_news(self, query, user_id: int):
-        """تبديل فحص الأخبار"""
+        """Toggle news checking"""
         db = get_db()
         ai_cfg = db.get_ai_config(user_id)
         new_val = not ai_cfg.news_check_enabled
         db.update_ai_config(user_id, news_check_enabled=new_val)
-        await query.answer(f"✅ فحص الأخبار: {'مفعل' if new_val else 'معطل'}")
+        await query.answer(f"✅ News check: {'Enabled' if new_val else 'Disabled'}")
         await self._show_ai_config(query, user_id)
 
     async def _handle_timeframe_select(self, query, user_id: int, data: str):
-        """اختيار الإطار الزمني"""
+        """Handle timeframe selection"""
         tf = data.replace("tf_", "")
         db = get_db()
         db.update_ai_config(user_id, prediction_timeframe=tf)
-        await query.answer(f"✅ الإطار الزمني: {tf}")
+        await query.answer(f"✅ Timeframe: {tf}")
         await self._show_ai_config(query, user_id)
 
     async def _toggle_backtest(self, query, user_id: int):
-        """تبديل وضع المحاكاة"""
+        """Toggle backtest mode"""
         db = get_db()
         ai_cfg = db.get_ai_config(user_id)
         new_val = not ai_cfg.backtest_mode
         db.update_ai_config(user_id, backtest_mode=new_val)
-        await query.answer(f"✅ وضع المحاكاة: {'مفعل' if new_val else 'معطل'}")
+        await query.answer(f"✅ Backtest mode: {'Enabled' if new_val else 'Disabled'}")
         await self._show_ai_config(query, user_id)

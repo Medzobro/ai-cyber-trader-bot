@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-AI Cyber-Trader Bot - نقطة الدخول الرئيسية
-==========================================
-بوت تليجرام للتداول الذكي باستخدام DeepSeek AI
+AI Cyber-Trader Bot - Main Entry Point
+=======================================
+Telegram bot for intelligent trading powered by DeepSeek AI
 """
 import asyncio
 import signal
 import sys
 import os
 
-# إضافة المسار إلى PYTHONPATH
+# Add project root to PYTHONPATH
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import config, get_config
@@ -25,84 +25,84 @@ from bot.handlers import TelegramBot
 
 
 def print_banner():
-    """عرض شعار البوت"""
+    """Display startup banner"""
     banner = """
     ╔══════════════════════════════════════════╗
     ║     🤖 AI Cyber-Trader Bot v1.0.0       ║
-    ║     نظام التداول الذكي - DeepSeek AI     ║
+    ║   Intelligent Trading - DeepSeek AI     ║
     ╚══════════════════════════════════════════╝
     """
     print(banner)
 
 
 def setup_components():
-    """تجهيز جميع مكونات النظام"""
+    """Setup all system components"""
     logger = get_logger("Setup")
 
-    # 1. قاعدة البيانات
-    logger.info("📦 Initializing database...")
+    # 1. Database
+    logger.info("Initializing database...")
     db = get_db()
-    logger.info("✅ Database ready")
+    logger.info("Database ready")
 
     # 2. DeepSeek AI
-    logger.info("🤖 Initializing DeepSeek AI...")
+    logger.info("Initializing DeepSeek AI...")
     deepseek = DeepSeekClient()
 
     if config.deepseek.api_key != "YOUR_DEEPSEEK_API_KEY":
         if deepseek.test_connection():
-            logger.info("✅ DeepSeek AI connected")
+            logger.info("DeepSeek AI connected")
         else:
-            logger.warning("⚠️ DeepSeek AI connection failed - check API key")
+            logger.warning("DeepSeek AI connection failed - check API key")
     else:
-        logger.warning("⚠️ DEEPSEEK_API_KEY not set. AI features disabled.")
+        logger.warning("DEEPSEEK_API_KEY not set. AI features disabled.")
 
     # 3. MT5 Bridge
-    logger.info("🔗 Connecting to MT5...")
+    logger.info("Connecting to MT5...")
     mt5 = get_mt5()
     connected = mt5.connect()
 
     if connected:
         account = mt5.get_account_info()
         logger.info(
-            f"✅ MT5 {'Connected' if not mt5.simulation else 'SIMULATION'}: "
+            f"MT5 {'Connected' if not mt5.simulation else 'SIMULATION'}: "
             f"Balance=${account.get('balance', 0):,.2f}"
         )
     else:
-        logger.error("❌ Failed to connect to MT5")
+        logger.error("Failed to connect to MT5")
 
     # 4. Risk Manager
-    logger.info("🛡️ Initializing risk manager...")
+    logger.info("Initializing risk manager...")
     risk = get_risk_manager(mt5)
-    logger.info("✅ Risk manager ready")
+    logger.info("Risk manager ready")
 
     # 5. Market Analyzer
-    logger.info("📊 Initializing market analyzer...")
+    logger.info("Initializing market analyzer...")
     analyzer = MarketAnalyzer(mt5, deepseek)
-    logger.info("✅ Market analyzer ready")
+    logger.info("Market analyzer ready")
 
     # 6. AI Predictor
-    logger.info("🧠 Initializing AI predictor...")
+    logger.info("Initializing AI predictor...")
     predictor = AIPredictor(deepseek)
-    logger.info("✅ Predictor ready")
+    logger.info("Predictor ready")
 
     # 7. Trade Executor
-    logger.info("💼 Initializing trade executor...")
+    logger.info("Initializing trade executor...")
     executor = get_executor(mt5, risk, predictor, analyzer)
-    logger.info("✅ Trade executor ready")
+    logger.info("Trade executor ready")
 
     # 8. Telegram Bot
-    logger.info("📱 Initializing Telegram bot...")
+    logger.info("Initializing Telegram bot...")
     bot = TelegramBot(mt5, risk, executor, analyzer, predictor)
-    logger.info("✅ Bot ready")
+    logger.info("Bot ready")
 
     return bot
 
 
 async def main():
-    """الدالة الرئيسية"""
+    """Main async entry point"""
     print_banner()
 
-    # إعداد نظام التسجيل
+    # Setup logging
     log_config = config.log
     os.makedirs(os.path.dirname(log_config.file), exist_ok=True)
     logger = setup_logger(log_config)
@@ -110,16 +110,16 @@ async def main():
     logger.info("Starting AI Cyber-Trader Bot...")
     logger.info("=" * 50)
 
-    # تجهيز المكونات
+    # Initialize components
     try:
         bot = setup_components()
     except Exception as e:
-        logger.error(f"❌ Setup failed: {e}")
+        logger.error(f"Setup failed: {e}")
         raise
 
-    # معالج الإيقاف الآمن
+    # Graceful shutdown handler
     def signal_handler(sig, frame):
-        logger.info("\n🛑 Shutting down...")
+        logger.info("\nShutting down...")
         if bot.mt5:
             bot.mt5.disconnect()
         sys.exit(0)
@@ -127,30 +127,30 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # تشغيل البوت
-    logger.info("🚀 Starting bot polling...")
+    # Start the bot
+    logger.info("Starting bot polling...")
     logger.info("=" * 50)
 
     try:
         await bot.start()
     except KeyboardInterrupt:
-        logger.info("\n🛑 Interrupted")
+        logger.info("\nInterrupted")
     except Exception as e:
-        logger.error(f"❌ Bot error: {e}")
+        logger.error(f"Bot error: {e}")
         raise
     finally:
         if bot:
             await bot.stop()
         if bot.mt5:
             bot.mt5.disconnect()
-        logger.info("👋 Shutdown complete")
+        logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
+        print("\nGoodbye!")
     except Exception as e:
-        print(f"\n❌ Fatal error: {e}")
+        print(f"\nFatal error: {e}")
         sys.exit(1)

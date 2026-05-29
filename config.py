@@ -1,7 +1,7 @@
 """
 AI Cyber-Trader Bot - Configuration
 ====================================
-جميع إعدادات المشروع المركزية
+All centralized project settings
 """
 import os
 from dataclasses import dataclass, field
@@ -13,7 +13,7 @@ load_dotenv()
 
 @dataclass
 class TelegramConfig:
-    """إعدادات بوت تليجرام"""
+    """Telegram bot settings"""
     bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
     admin_ids: List[int] = field(default_factory=lambda: [
         int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x
@@ -22,7 +22,7 @@ class TelegramConfig:
 
 @dataclass
 class DeepSeekConfig:
-    """إعدادات DeepSeek AI"""
+    """DeepSeek AI settings"""
     api_key: str = os.getenv("DEEPSEEK_API_KEY", "YOUR_DEEPSEEK_API_KEY")
     base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
     model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
@@ -32,7 +32,7 @@ class DeepSeekConfig:
 
 @dataclass
 class TradingConfig:
-    """إعدادات التداول"""
+    """Trading settings"""
     # MT5 Connection
     mt5_login: int = int(os.getenv("MT5_LOGIN", "0"))
     mt5_password: str = os.getenv("MT5_PASSWORD", "")
@@ -46,7 +46,7 @@ class TradingConfig:
     min_lot: float = 0.01
 
     # Risk Management
-    max_daily_loss: float = 5.0  # نسبة مئوية
+    max_daily_loss: float = 5.0  # percentage
     max_open_trades: int = 3
     stop_loss_pips: int = 500
     take_profit_pips: int = 800
@@ -59,8 +59,8 @@ class TradingConfig:
 
 @dataclass
 class AIConfig:
-    """إعدادات الذكاء الاصطناعي"""
-    confidence_threshold: float = 70.0  # الحد الأدنى لنسبة الثقة (%)
+    """AI settings"""
+    confidence_threshold: float = 70.0  # minimum confidence threshold (%)
     analysis_mode: str = "predictive"  # predictive, news_scanning, hybrid
     news_check_enabled: bool = True
     backtest_mode: bool = False
@@ -73,24 +73,24 @@ class AIConfig:
 
 @dataclass
 class DatabaseConfig:
-    """إعدادات قاعدة البيانات"""
+    """Database settings"""
     path: str = os.getenv("DB_PATH", "data/trader_bot.db")
     echo_sql: bool = False
 
 
 @dataclass
 class LogConfig:
-    """إعدادات التسجيل"""
+    """Logging settings"""
     level: str = "INFO"
     file: str = "logs/trader_bot.log"
     format: str = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 
 
-# ─── التكوين الرئيسي ────────────────────────────────────
+# ─── Main Configuration ────────────────────────────────
 
 @dataclass
 class Config:
-    """التكوين الرئيسي للمشروع"""
+    """Main project configuration"""
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
     deepseek: DeepSeekConfig = field(default_factory=DeepSeekConfig)
     trading: TradingConfig = field(default_factory=TradingConfig)
@@ -100,13 +100,13 @@ class Config:
 
     # Supported trading symbols
     symbols: Dict[str, str] = field(default_factory=lambda: {
-        "XAUUSD": "🏆 الذهب",
-        "EURUSD": "💶 اليورو/دولار",
-        "GBPUSD": "💷 الباوند/دولار",
-        "USDJPY": "💴 الدولار/ين",
-        "BTCUSD": "₿ بيتكوين",
-        "US30": "📊 داو جونز",
-        "NAS100": "📈 ناسداك",
+        "XAUUSD": "🏆 Gold",
+        "EURUSD": "💶 EUR/USD",
+        "GBPUSD": "💷 GBP/USD",
+        "USDJPY": "💴 USD/JPY",
+        "BTCUSD": "₿ Bitcoin",
+        "US30": "📊 Dow Jones",
+        "NAS100": "📈 NASDAQ",
     })
 
     # Lot size presets
@@ -125,5 +125,5 @@ config = Config()
 
 
 def get_config() -> Config:
-    """الحصول على نسخة التكوين الرئيسية"""
+    """Get the main config singleton"""
     return config

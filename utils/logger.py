@@ -1,5 +1,5 @@
 """
-Logger Utility - تسجيل الأحداث
+Logger Utility
 """
 import logging
 import sys
@@ -9,16 +9,16 @@ from config import LogConfig
 
 
 def setup_logger(config: LogConfig) -> logging.Logger:
-    """إعداد نظام تسجيل الأحداث"""
+    """Setup the logging system"""
 
-    # إنشاء مجلد السجلات إذا لم يكن موجوداً
+    # Create log directory if it doesn't exist
     log_path = Path(config.file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger("CyberTrader")
     logger.setLevel(getattr(logging, config.level.upper(), logging.INFO))
 
-    # تجنب إضافة handlers مكررة
+    # Avoid duplicate handlers
     if logger.handlers:
         return logger
 
@@ -39,7 +39,7 @@ def setup_logger(config: LogConfig) -> logging.Logger:
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
-    """الحصول على logger"""
+    """Get a logger instance"""
     if name:
         return logging.getLogger(f"CyberTrader.{name}")
     return logging.getLogger("CyberTrader")
