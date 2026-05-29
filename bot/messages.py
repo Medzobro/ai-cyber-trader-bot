@@ -3,7 +3,7 @@ Messages - Message Templates
 ==============================
 All text templates used in the bot
 """
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
 
 from config import config
@@ -403,6 +403,45 @@ class Messages:
         )
 
     # ─── Analysis Result ──────────────────────────
+
+    @staticmethod
+    def top5_result(results: List[Dict[str, Any]]) -> str:
+        """Top 5 Forex opportunities message"""
+        if not results:
+            return "❌ No trading opportunities found at the moment."
+
+        lines = [
+            "🏆 **Top 5 Forex Opportunities**\n",
+            "══════════════════════",
+            "",
+        ]
+
+        for i, r in enumerate(results, 1):
+            direction_emoji = {"buy": "🟢", "sell": "🔴", "hold": "⚪"}.get(r["direction"], "⚪")
+            direction_text = {"buy": "BUY", "sell": "SELL", "hold": "HOLD"}.get(r["direction"], r["direction"].upper())
+
+            change_emoji = "📈" if r.get("change_24h", 0) > 0 else "📉" if r.get("change_24h", 0) < 0 else "➡️"
+
+            lines.append(
+                f"{i}. **{r['name']}** ({r['symbol']})\n"
+                f"   {direction_emoji} **{direction_text}** | 🎯 Confidence: {r['confidence']:.1f}%\n"
+                f"   💵 Price: {r['current_price']} | {change_emoji} 24h: {r.get('change_24h', 0):+.2f}%\n"
+                f"   📊 RSI: {r.get('rsi', 'N/A')} | ADX: {r.get('adx', 'N/A')} | Trend: {r['trend'].title()}"
+            )
+            if r["direction"] != "hold":
+                lines.append(
+                    f"   🎯 Entry: {r['entry_price']} | 🛡️ SL: {r['stop_loss']} | 💰 TP: {r['take_profit']}"
+                )
+            lines.append("")
+
+        lines.extend([
+            "══════════════════════",
+            "",
+            "⚠️ These are indicator-based signals. Always confirm with your own analysis.",
+        ])
+
+        text = "\n".join(lines)
+        return text[:3900] + "\n..." if len(text) > 3900 else text
 
     @staticmethod
     def analysis_result(result: Dict[str, Any]) -> str:

@@ -123,10 +123,20 @@ class Config:
         "EURUSD": "💶 EUR/USD",
         "GBPUSD": "💷 GBP/USD",
         "USDJPY": "💴 USD/JPY",
+        "USDCAD": "🇨🇦 USD/CAD",
+        "AUDUSD": "🇦🇺 AUD/USD",
+        "NZDUSD": "🇳🇿 NZD/USD",
+        "EURGBP": "🇪🇺🇬🇧 EUR/GBP",
+        "GBPJPY": "🇬🇧🇯🇵 GBP/JPY",
         "BTCUSD": "₿ Bitcoin",
         "US30": "📊 Dow Jones",
         "NAS100": "📈 NASDAQ",
     })
+
+    # Top 5 Forex pairs for quick scanning
+    top_5_forex: List[str] = field(default_factory=lambda: [
+        "EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "USDCAD"
+    ])
 
     # Lot size presets
     lot_presets: List[float] = field(default_factory=lambda: [

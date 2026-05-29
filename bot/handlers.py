@@ -213,6 +213,7 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("report", self.cmd_report))
         self.app.add_handler(CommandHandler("settings", self.cmd_settings))
         self.app.add_handler(CommandHandler("panic", self.cmd_panic))
+        self.app.add_handler(CommandHandler("top5", self.cmd_top5))
         self.app.add_handler(CommandHandler("cancel", self.cmd_cancel))
 
         # Callbacks (inline buttons)
@@ -382,6 +383,35 @@ class TelegramBot:
             reply_markup=Keyboards.confirm_panic(),
             parse_mode="Markdown",
         )
+
+    async def cmd_top5(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """/top5 command - Show top 5 Forex opportunities"""
+        user = update.effective_user
+        user_id = user.id
+
+        if not self.analyzer:
+            await update.message.reply_text("❌ Market analyzer not initialized")
+            return
+
+        sent_msg = await update.message.reply_text(
+            "🏆 Scanning Top 5 Forex opportunities...",
+        )
+
+        try:
+            results = self.analyzer.analyze_top5(user_id=user_id)
+            top5_text = Messages.top5_result(results)
+
+            await sent_msg.edit_text(
+                text=top5_text,
+                reply_markup=Keyboards.back_button("main_menu"),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.error(f"Top5 error: {e}")
+            await sent_msg.edit_text(
+                f"❌ Top 5 error: {e}",
+                reply_markup=Keyboards.back_button(),
+            )
 
     async def cmd_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """/cancel - Cancel current input operation"""
@@ -661,6 +691,10 @@ class TelegramBot:
                         "❌ Risk manager not initialized",
                         reply_markup=Keyboards.back_button(),
                     )
+
+            # Top 5 Forex
+            elif data == "top5_forex":
+                await self._handle_top5(query, user_id)
 
             # Analyze Now
             elif data == "analyze_now":
@@ -1019,6 +1053,35 @@ class TelegramBot:
 
         await query.answer("⏸️ Auto trading paused")
         await self._show_dashboard(query, user_id)
+
+    async def _handle_top5(self, query, user_id: int):
+        """Handle Top 5 Forex button"""
+        if not self.analyzer:
+            await query.edit_message_text(
+                "❌ Market analyzer not initialized",
+                reply_markup=Keyboards.back_button(),
+            )
+            return
+
+        await query.edit_message_text(
+            "🏆 Scanning Top 5 Forex opportunities...",
+        )
+
+        try:
+            results = self.analyzer.analyze_top5(user_id=user_id)
+            top5_text = Messages.top5_result(results)
+
+            await query.edit_message_text(
+                text=top5_text,
+                reply_markup=Keyboards.back_button("main_menu"),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.error(f"Top5 callback error: {e}")
+            await query.edit_message_text(
+                f"❌ Top 5 error: {e}",
+                reply_markup=Keyboards.back_button(),
+            )
 
     async def _handle_analyze_now(self, query, user_id: int, auto_mode: bool = False):
         """Analyze market now"""

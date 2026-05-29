@@ -275,6 +275,119 @@ class MarketAnalyzer:
             logger.error(f"Error fetching market data: {e}")
             return None
 
+    def analyze_top5(self, user_id: int = None, timeframe: str = None) -> List[Dict]:
+        """
+        Analyze the top 5 Forex pairs and return ranked opportunities.
+        Uses lightweight technical scoring without AI API calls to stay fast.
+
+        Returns:
+            List[Dict]: Top 5 results sorted by opportunity score (descending)
+        """
+        timeframe = timeframe or config.ai.prediction_timeframe
+        symbols = config.top_5_forex
+        results = []
+
+        for symbol in symbols:
+            try:
+                # Fetch market data (fallback to simulation if MT5 in sim mode)
+                market_data = self._fetch_market_data(symbol, timeframe, 100)
+                if market_data is None and self.mt5 and getattr(self.mt5, 'simulation', False):
+                    market_data = self._simulate_market_data(symbol, 100)
+                if market_data is None:
+                    continue
+
+                # Calculate indicators
+                indicators_data = self.indicators.get_all_indicators(market_data["df"])
+
+                # Lightweight scoring (no AI call — keeps it fast & free)
+                rsi = indicators_data.get("rsi", 50)
+                macd = indicators_data.get("macd", {})
+                macd_signal = macd.get("signal", 0)
+                macd_hist = macd.get("histogram", 0)
+                adx = indicators_data.get("adx", 0)
+                trend = indicators_data.get("trend", "sideways")
+                current_price = market_data["current_price"]
+                change_24h = market_data.get("change_24h", 0)
+
+                # Determine direction & confidence based on indicators
+                direction = "hold"
+                confidence = 0.0
+                score = 0.0
+
+                if trend == "bullish":
+                    if rsi < 70 and macd_hist > 0:
+                        direction = "buy"
+                        score = min(100, 60 + adx * 0.5 + abs(change_24h) * 2)
+                    elif rsi > 70:
+                        direction = "hold"
+                        score = 30
+                    else:
+                        direction = "buy"
+                        score = 55
+                elif trend == "bearish":
+                    if rsi > 30 and macd_hist < 0:
+                        direction = "sell"
+                        score = min(100, 60 + adx * 0.5 + abs(change_24h) * 2)
+                    elif rsi < 30:
+                        direction = "hold"
+                        score = 30
+                    else:
+                        direction = "sell"
+                        score = 55
+                else:
+                    # Sideways — mean reversion logic
+                    if rsi > 70:
+                        direction = "sell"
+                        score = 50
+                    elif rsi < 30:
+                        direction = "buy"
+                        score = 50
+                    else:
+                        direction = "hold"
+                        score = 20
+
+                confidence = round(score, 1)
+
+                # Entry / SL / TP estimates
+                atr = indicators_data.get("atr", current_price * 0.001)
+                if direction == "buy":
+                    entry = current_price
+                    sl = round(current_price - atr * 1.5, 5)
+                    tp = round(current_price + atr * 2.5, 5)
+                elif direction == "sell":
+                    entry = current_price
+                    sl = round(current_price + atr * 1.5, 5)
+                    tp = round(current_price - atr * 2.5, 5)
+                else:
+                    entry = current_price
+                    sl = 0
+                    tp = 0
+
+                results.append({
+                    "symbol": symbol,
+                    "name": config.symbols.get(symbol, symbol),
+                    "direction": direction,
+                    "confidence": confidence,
+                    "current_price": round(current_price, 5),
+                    "change_24h": change_24h,
+                    "rsi": round(rsi, 1),
+                    "adx": round(adx, 1),
+                    "trend": trend,
+                    "entry_price": entry,
+                    "stop_loss": sl,
+                    "take_profit": tp,
+                })
+            except Exception as e:
+                logger.warning(f"Top5 analysis error for {symbol}: {e}")
+                continue
+
+        # Sort by confidence descending, filter out hold if possible
+        trade_results = [r for r in results if r["direction"] != "hold"]
+        if not trade_results:
+            trade_results = results
+        trade_results.sort(key=lambda x: x["confidence"], reverse=True)
+        return trade_results[:5]
+
     def _simulate_market_data(self, symbol: str, bars: int) -> Dict:
         """Simulate market data for testing (no MT5)"""
         import numpy as np

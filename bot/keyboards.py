@@ -32,6 +32,9 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton("📊 Analyze Market Now", callback_data="analyze_now"),
+                InlineKeyboardButton("🏆 Top 5 Forex", callback_data="top5_forex"),
+            ],
+            [
                 InlineKeyboardButton("🔄 Refresh", callback_data="refresh"),
             ],
             [
