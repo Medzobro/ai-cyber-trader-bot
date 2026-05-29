@@ -109,6 +109,7 @@ class AIConfigModel(Base):
     backtest_mode = Column(Boolean, default=False)
     prediction_timeframe = Column(String(10), default="M15")
     preferred_provider = Column(String(30), default=None, comment="User's preferred AI provider: openai, gemini, claude, deepseek")
+    news_guard_enabled = Column(Boolean, default=True, comment="Enable/disable NewsGuard auto-close on high-impact news")
 
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

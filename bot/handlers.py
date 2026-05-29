@@ -12,12 +12,14 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ContextTypes
 )
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from config import config, get_config
 from utils.logger import get_logger
 from utils.helpers import format_currency, format_percentage
 from database.db_manager import get_db
 from ai_engine.ai_manager import AIManager, PROVIDER_INFO
+from trading.news_guard import NewsGuard
 from .keyboards import Keyboards
 from .messages import Messages
 from .notifications import NotificationManager
@@ -38,6 +40,11 @@ class TelegramBot:
         self.predictor = predictor
         self.news_scraper = news_scraper
         self.notifications = NotificationManager()
+        self.news_guard = NewsGuard(
+            news_scraper=news_scraper,
+            mt5_bridge=mt5_bridge,
+            risk_manager=risk_manager,
+        )
 
         # Auto trading states
         self.auto_trading: Dict[int, bool] = {}
@@ -47,6 +54,9 @@ class TelegramBot:
 
         self.app: Optional[Application] = None
         self.db = get_db()
+
+        # Background scheduler for NewsGuard
+        self._scheduler = None
 
     async def start(self):
         """Start the bot"""
@@ -62,15 +72,55 @@ class TelegramBot:
         # Register handlers
         self._register_handlers()
 
+        # Start NewsGuard periodic protection scan
+        self._start_news_guard_scheduler()
+
         logger.info("Telegram bot started. Waiting for commands...")
         await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def stop(self):
         """Stop the bot"""
+        if self._scheduler:
+            self._scheduler.shutdown(wait=False)
+            logger.info("NewsGuard scheduler stopped")
         if self.app:
             await self.app.stop()
             await self.app.shutdown()
         logger.info("Bot stopped")
+
+    def _start_news_guard_scheduler(self):
+        """Start the periodic NewsGuard protection scan"""
+        try:
+            self._scheduler = AsyncIOScheduler()
+            self._scheduler.add_job(
+                self._periodic_news_check,
+                "interval",
+                minutes=NewsGuard.CHECK_INTERVAL_MINUTES,
+                id="news_guard_scan",
+                replace_existing=True,
+            )
+            self._scheduler.start()
+            logger.info(
+                f"🛡️ NewsGuard scheduler started | "
+                f"Interval: {NewsGuard.CHECK_INTERVAL_MINUTES}min"
+            )
+        except Exception as e:
+            logger.error(f"Failed to start NewsGuard scheduler: {e}")
+
+    async def _periodic_news_check(self):
+        """Periodic background job: scan all users for imminent news"""
+        try:
+            results = await self.news_guard.scan_all_users(
+                notifications=self.notifications
+            )
+            if results:
+                total_closed = sum(r.get("positions_closed", 0) for r in results)
+                logger.info(
+                    f"🛡️ NewsGuard scan: {len(results)} users protected, "
+                    f"{total_closed} positions closed"
+                )
+        except Exception as e:
+            logger.error(f"NewsGuard periodic check error: {e}")
 
     def _register_handlers(self):
         """Register all command and callback handlers"""
@@ -334,6 +384,8 @@ class TelegramBot:
                 )
             elif data.startswith("tf_"):
                 await self._handle_timeframe_select(query, user_id, data)
+            elif data == "ai_newsguard":
+                await self._toggle_newsguard(query, user_id)
             elif data == "ai_backtest":
                 await self._toggle_backtest(query, user_id)
             elif data == "ai_train":
@@ -738,11 +790,12 @@ class TelegramBot:
             timeframe=ai_cfg.prediction_timeframe,
             backtest=ai_cfg.backtest_mode,
             provider=provider,
+            news_guard_enabled=ai_cfg.news_guard_enabled,
         )
 
         await query.edit_message_text(
             text=text,
-            reply_markup=Keyboards.ai_config(),
+            reply_markup=Keyboards.ai_config(news_guard_enabled=ai_cfg.news_guard_enabled),
             parse_mode="Markdown",
         )
 
@@ -1049,6 +1102,15 @@ class TelegramBot:
         db = get_db()
         db.update_ai_config(user_id, prediction_timeframe=tf)
         await query.answer(f"✅ Timeframe: {tf}")
+        await self._show_ai_config(query, user_id)
+
+    async def _toggle_newsguard(self, query, user_id: int):
+        """Toggle NewsGuard auto-close on high-impact news"""
+        db = get_db()
+        ai_cfg = db.get_ai_config(user_id)
+        new_val = not ai_cfg.news_guard_enabled
+        db.update_ai_config(user_id, news_guard_enabled=new_val)
+        await query.answer(f"🛡️ NewsGuard: {'Enabled' if new_val else 'Disabled'}")
         await self._show_ai_config(query, user_id)
 
     async def _toggle_backtest(self, query, user_id: int):

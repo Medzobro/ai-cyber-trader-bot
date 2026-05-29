@@ -144,8 +144,9 @@ class Keyboards:
     # ─── AI Configuration ─────────────────────────
 
     @staticmethod
-    def ai_config() -> InlineKeyboardMarkup:
+    def ai_config(news_guard_enabled: bool = True) -> InlineKeyboardMarkup:
         """AI configuration menu"""
+        news_guard_label = "🛡️ NewsGuard: ON" if news_guard_enabled else "🛡️ NewsGuard: OFF"
         buttons = [
             [
                 InlineKeyboardButton("🔑 AI Provider & API Key", callback_data="ai_provider"),
@@ -159,6 +160,7 @@ class Keyboards:
                 InlineKeyboardButton("⏱️ Timeframe", callback_data="ai_timeframe"),
             ],
             [
+                InlineKeyboardButton(news_guard_label, callback_data="ai_newsguard"),
                 InlineKeyboardButton("🧪 Backtest Mode", callback_data="ai_backtest"),
             ],
             [
