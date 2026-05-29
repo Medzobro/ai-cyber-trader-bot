@@ -10,7 +10,6 @@ import numpy as np
 from config import config
 from utils.logger import get_logger
 from database.db_manager import get_db
-from .deepseek_client import DeepSeekClient
 from .indicators import TechnicalIndicators
 
 logger = get_logger(__name__)
@@ -30,10 +29,9 @@ except ImportError:
 
 
 class AIPredictor:
-    """Integrated predictor combining DeepSeek AI and ML"""
+    """Integrated predictor - combines AI results with ML and indicator analysis"""
 
-    def __init__(self, deepseek_client: DeepSeekClient = None):
-        self.deepseek = deepseek_client or DeepSeekClient()
+    def __init__(self):
         self.indicators = TechnicalIndicators()
         self.ml_model = None
         self.scaler = None

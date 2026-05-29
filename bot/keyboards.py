@@ -148,6 +148,9 @@ class Keyboards:
         """AI configuration menu"""
         buttons = [
             [
+                InlineKeyboardButton("🔑 AI Provider & API Key", callback_data="ai_provider"),
+            ],
+            [
                 InlineKeyboardButton("🧠 Analysis Model", callback_data="ai_model"),
                 InlineKeyboardButton("🎯 Confidence Level", callback_data="ai_confidence"),
             ],
@@ -165,6 +168,64 @@ class Keyboards:
                 InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="main_menu"),
             ],
         ]
+        return InlineKeyboardMarkup(buttons)
+
+    # ─── AI Provider Selection ────────────────────
+
+    @staticmethod
+    def ai_providers() -> InlineKeyboardMarkup:
+        """AI provider selection menu"""
+        buttons = [
+            [
+                InlineKeyboardButton("🧠 OpenAI GPT", callback_data="provider_openai"),
+                InlineKeyboardButton("💎 Google Gemini", callback_data="provider_gemini"),
+            ],
+            [
+                InlineKeyboardButton("🔮 Anthropic Claude", callback_data="provider_claude"),
+                InlineKeyboardButton("🤖 DeepSeek AI", callback_data="provider_deepseek"),
+            ],
+            [
+                InlineKeyboardButton("🔙 View My Keys", callback_data="provider_status"),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back", callback_data="menu_ai"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def provider_setup(provider: str, provider_name: str) -> InlineKeyboardMarkup:
+        """Setup menu for a specific AI provider"""
+        buttons = [
+            [
+                InlineKeyboardButton("🔑 Set API Key", callback_data=f"setkey_{provider}"),
+            ],
+            [
+                InlineKeyboardButton("✅ Validate Key", callback_data=f"validate_{provider}"),
+            ],
+            [
+                InlineKeyboardButton("🧠 Choose Model", callback_data=f"model_{provider}"),
+            ],
+            [
+                InlineKeyboardButton("🗑️ Remove Key", callback_data=f"delkey_{provider}"),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back to Providers", callback_data="ai_provider"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def provider_models(provider: str, models: list) -> InlineKeyboardMarkup:
+        """Model selection for a provider"""
+        buttons = []
+        for model in models:
+            buttons.append([
+                InlineKeyboardButton(f"📦 {model}", callback_data=f"setmodel_{provider}_{model}"),
+            ])
+        buttons.append([
+            InlineKeyboardButton("⬅️ Back", callback_data=f"provider_{provider}"),
+        ])
         return InlineKeyboardMarkup(buttons)
 
     @staticmethod

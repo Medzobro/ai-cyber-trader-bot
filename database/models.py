@@ -108,6 +108,7 @@ class AIConfigModel(Base):
     news_check_enabled = Column(Boolean, default=True)
     backtest_mode = Column(Boolean, default=False)
     prediction_timeframe = Column(String(10), default="M15")
+    preferred_provider = Column(String(30), default=None, comment="User's preferred AI provider: openai, gemini, claude, deepseek")
 
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -135,3 +136,24 @@ class DailyPerformance(Base):
 
     def __repr__(self):
         return f"<DailyPerformance(date={self.date}, pnl={self.total_pnl})>"
+
+
+class UserAPIKey(Base):
+    """Encrypted user API keys for AI providers"""
+    __tablename__ = "user_api_keys"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    provider = Column(String(30), nullable=False)  # openai, gemini, claude, deepseek
+    encrypted_key = Column(Text, nullable=False)  # AES-256 encrypted
+    key_hash = Column(String(64), nullable=True)  # SHA256 hash for audit (non-reversible)
+    model = Column(String(50), nullable=True)  # User's chosen model
+    is_active = Column(Boolean, default=True)
+    is_valid = Column(Boolean, default=False)  # Last validation result
+    last_validated = Column(DateTime, nullable=True)
+    validation_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<UserAPIKey(user={self.user_id}, provider={self.provider}, valid={self.is_valid})>"

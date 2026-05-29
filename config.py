@@ -59,13 +59,23 @@ class TradingConfig:
 
 @dataclass
 class AIConfig:
-    """AI settings"""
+    """AI settings - Multi-provider"""
     confidence_threshold: float = 70.0  # minimum confidence threshold (%)
     analysis_mode: str = "predictive"  # predictive, news_scanning, hybrid
     news_check_enabled: bool = True
     backtest_mode: bool = False
     prediction_timeframe: str = "M15"  # M5, M15, H1, H4, D1
     max_historical_bars: int = 1000
+    
+    # Multi-provider defaults (users can override with their own keys)
+    default_provider: str = "deepseek"  # openai, gemini, claude, deepseek
+    
+    # Encryption
+    encryption_secret: str = os.getenv(
+        "ENCRYPTION_SECRET",
+        "ai-cyber-trader-default-secret-change-in-production"
+    )
+    
     indicators: List[str] = field(default_factory=lambda: [
         "RSI", "MACD", "EMA", "Bollinger", "ATR", "ADX", "Stochastic"
     ])

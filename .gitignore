@@ -1,27 +1,27 @@
-# بايت كود
+# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# البيئة الافتراضية
+# Virtual environment
 venv/
 env/
 .venv/
 
-# متغيرات البيئة
+# Environment variables
 .env
 
-# قاعدة بيانات
+# Database
 data/
 *.db
 *.sqlite
 
-# سجلات
+# Logs
 logs/
 *.log
 
-# توزيع
+# Distribution
 dist/
 build/
 *.egg-info/
@@ -32,6 +32,6 @@ build/
 *.swp
 *.swo
 
-# نظام
+# OS
 .DS_Store
 Thumbs.db

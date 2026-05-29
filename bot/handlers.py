@@ -17,6 +17,7 @@ from config import config, get_config
 from utils.logger import get_logger
 from utils.helpers import format_currency, format_percentage
 from database.db_manager import get_db
+from ai_engine.ai_manager import AIManager, PROVIDER_INFO
 from .keyboards import Keyboards
 from .messages import Messages
 from .notifications import NotificationManager
@@ -29,12 +30,13 @@ class TelegramBot:
 
     def __init__(self, mt5_bridge=None, risk_manager=None,
                  trade_executor=None, market_analyzer=None,
-                 predictor=None):
+                 predictor=None, news_scraper=None):
         self.mt5 = mt5_bridge
         self.risk = risk_manager
         self.executor = trade_executor
         self.analyzer = market_analyzer
         self.predictor = predictor
+        self.news_scraper = news_scraper
         self.notifications = NotificationManager()
 
         # Auto trading states
@@ -51,7 +53,7 @@ class TelegramBot:
         token = config.telegram.bot_token
 
         if token == "YOUR_TELEGRAM_BOT_TOKEN":
-            logger.error("❌ Please set TELEGRAM_BOT_TOKEN in .env file")
+            logger.error("Please set TELEGRAM_BOT_TOKEN in .env file")
             return
 
         self.app = Application.builder().token(token).build()
@@ -60,7 +62,7 @@ class TelegramBot:
         # Register handlers
         self._register_handlers()
 
-        logger.info("✅ Telegram bot started. Waiting for commands...")
+        logger.info("Telegram bot started. Waiting for commands...")
         await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def stop(self):
@@ -68,7 +70,7 @@ class TelegramBot:
         if self.app:
             await self.app.stop()
             await self.app.shutdown()
-        logger.info("🛑 Bot stopped")
+        logger.info("Bot stopped")
 
     def _register_handlers(self):
         """Register all command and callback handlers"""
@@ -80,11 +82,12 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("report", self.cmd_report))
         self.app.add_handler(CommandHandler("settings", self.cmd_settings))
         self.app.add_handler(CommandHandler("panic", self.cmd_panic))
+        self.app.add_handler(CommandHandler("cancel", self.cmd_cancel))
 
         # Callbacks (inline buttons)
         self.app.add_handler(CallbackQueryHandler(self.handle_callback))
 
-        # Text messages (custom lot, etc.)
+        # Text messages (custom lot, API keys, etc.)
         self.app.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND, self.handle_message
         ))
@@ -184,7 +187,7 @@ class TelegramBot:
 
         # Send waiting message
         sent_msg = await update.message.reply_text(
-            f"⏳ Analyzing {symbol} ({tf}) with DeepSeek AI...",
+            f"⏳ Analyzing {symbol} ({tf}) with AI...",
         )
 
         try:
@@ -247,6 +250,16 @@ class TelegramBot:
             "All positions will be closed immediately at market price.",
             reply_markup=Keyboards.confirm_panic(),
             parse_mode="Markdown",
+        )
+
+    async def cmd_cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """/cancel - Cancel current input operation"""
+        context.user_data.pop("awaiting_lot", None)
+        context.user_data.pop("awaiting_api_key", None)
+        context.user_data.pop("api_key_provider", None)
+        await update.message.reply_text(
+            "✅ Operation cancelled.",
+            reply_markup=Keyboards.main_dashboard(),
         )
 
     # ─── Callback Handler ─────────────────────────
@@ -328,6 +341,92 @@ class TelegramBot:
                     "🚧 This feature is under development...\nTraining ML model on historical data.",
                     reply_markup=Keyboards.back_button("menu_ai"),
                 )
+
+            # ─── AI Provider Management ─────────────────
+
+            elif data == "ai_provider":
+                await query.edit_message_text(
+                    Messages.provider_select(),
+                    reply_markup=Keyboards.ai_providers(),
+                    parse_mode="Markdown",
+                )
+
+            elif data == "provider_status":
+                await self._show_provider_status(query, user_id)
+
+            # Provider selection → show setup menu
+            elif data.startswith("provider_") and not data.startswith("provider_status"):
+                provider = data.replace("provider_", "")
+                info = PROVIDER_INFO.get(provider, {})
+                provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+                await query.edit_message_text(
+                    Messages.api_key_prompt(provider),
+                    reply_markup=Keyboards.provider_setup(provider, provider_name),
+                    parse_mode="Markdown",
+                )
+
+            # Set API key → prompt user to send the key
+            elif data.startswith("setkey_"):
+                provider = data.replace("setkey_", "")
+                context.user_data["awaiting_api_key"] = True
+                context.user_data["api_key_provider"] = provider
+                info = PROVIDER_INFO.get(provider, {})
+                provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+                await query.edit_message_text(
+                    Messages.api_key_prompt(provider),
+                    reply_markup=Keyboards.back_button(f"provider_{provider}"),
+                    parse_mode="Markdown",
+                )
+
+            # Validate API key
+            elif data.startswith("validate_"):
+                provider = data.replace("validate_", "")
+                await self._handle_validate_key(query, user_id, provider)
+
+            # Delete API key
+            elif data.startswith("delkey_"):
+                provider = data.replace("delkey_", "")
+                db.delete_api_key(user_id, provider)
+                await query.answer("🗑️ Key removed")
+                info = PROVIDER_INFO.get(provider, {})
+                provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+                await query.edit_message_text(
+                    Messages.api_key_removed(provider),
+                    reply_markup=Keyboards.provider_setup(provider, provider_name),
+                    parse_mode="Markdown",
+                )
+
+            # Show model selection for a provider
+            elif data.startswith("model_"):
+                provider = data.replace("model_", "")
+                info = PROVIDER_INFO.get(provider, {})
+                if isinstance(info, dict):
+                    models = info.get("models", ["default"])
+                else:
+                    models = ["default"]
+                await query.edit_message_text(
+                    Messages.provider_model_select(provider),
+                    reply_markup=Keyboards.provider_models(provider, models),
+                    parse_mode="Markdown",
+                )
+
+            # Set specific model for a provider
+            elif data.startswith("setmodel_"):
+                parts = data.split("_", 2)  # setmodel_PROVIDER_MODEL
+                if len(parts) >= 3:
+                    provider = parts[1]
+                    model = parts[2]
+                    db.store_api_key(user_id, provider, "", model=model)
+                    # Also set this as the preferred provider
+                    db.update_ai_config(user_id, preferred_provider=provider)
+                    await query.answer(f"✅ Model: {model} — set as active provider")
+                    info = PROVIDER_INFO.get(provider, {})
+                    provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+                    await query.edit_message_text(
+                        Messages.api_key_set(provider, model=model),
+                        reply_markup=Keyboards.provider_setup(provider, provider_name),
+                        parse_mode="Markdown",
+                    )
 
             # Trade Setup Menu
             elif data == "menu_trade":
@@ -461,32 +560,116 @@ class TelegramBot:
 
         # If awaiting custom lot input
         if context.user_data.get("awaiting_lot"):
-            try:
-                lot = float(text)
-                if lot < config.trading.min_lot or lot > config.trading.max_lot:
-                    await update.message.reply_text(
-                        f"⚠️ Lot must be between {config.trading.min_lot} and {config.trading.max_lot}",
-                        reply_markup=Keyboards.lot_sizes(),
-                    )
-                    return
+            await self._handle_custom_lot(update, context, user_id, text)
+            return
 
-                db.set_setting(user_id, "lot", str(lot))
-                context.user_data["awaiting_lot"] = False
+        # If awaiting API key input
+        if context.user_data.get("awaiting_api_key"):
+            await self._handle_api_key_input(update, context, user_id, text)
+            return
 
-                symbol = db.get_setting(user_id, "symbol", "XAUUSD")
-                direction = db.get_setting(user_id, "direction", "both")
+        # Default response
+        await update.message.reply_text(
+            "Use the buttons below or type a command:\n"
+            "/start - Main menu | /help - Help | /analyze - Analysis",
+            reply_markup=Keyboards.main_dashboard(),
+        )
 
+    async def _handle_custom_lot(self, update, context, user_id: int, text: str):
+        """Handle custom lot size input"""
+        db = get_db()
+        try:
+            lot = float(text)
+            if lot < config.trading.min_lot or lot > config.trading.max_lot:
                 await update.message.reply_text(
-                    f"✅ Lot size set to: **{lot}**\n\n"
-                    + Messages.trading_settings(symbol, lot, direction),
-                    reply_markup=Keyboards.trading_setup(),
-                    parse_mode="Markdown",
-                )
-            except ValueError:
-                await update.message.reply_text(
-                    "❌ Please enter a valid number. Example: `0.25`",
+                    f"⚠️ Lot must be between {config.trading.min_lot} and {config.trading.max_lot}",
                     reply_markup=Keyboards.lot_sizes(),
                 )
+                return
+
+            db.set_setting(user_id, "lot", str(lot))
+            context.user_data["awaiting_lot"] = False
+
+            symbol = db.get_setting(user_id, "symbol", "XAUUSD")
+            direction = db.get_setting(user_id, "direction", "both")
+
+            await update.message.reply_text(
+                f"✅ Lot size set to: **{lot}**\n\n"
+                + Messages.trading_settings(symbol, lot, direction),
+                reply_markup=Keyboards.trading_setup(),
+                parse_mode="Markdown",
+            )
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Please enter a valid number. Example: `0.25`",
+                reply_markup=Keyboards.lot_sizes(),
+            )
+
+    async def _handle_api_key_input(self, update, context, user_id: int, text: str):
+        """Handle API key input from user"""
+        db = get_db()
+        provider = context.user_data.get("api_key_provider", "deepseek")
+
+        # Clear the awaited state
+        context.user_data["awaiting_api_key"] = False
+        context.user_data["api_key_provider"] = None
+
+        info = PROVIDER_INFO.get(provider, {})
+        provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+
+        # Store the encrypted key
+        try:
+            db.store_api_key(user_id, provider, text)
+
+            # Auto-validate
+            await update.message.reply_text(
+                f"🔑 Key received for **{provider_name}**\n⏳ Validating...",
+                parse_mode="Markdown",
+            )
+
+            # Validate in background
+            decrypted = db.get_decrypted_api_key(user_id, provider)
+            if decrypted:
+                try:
+                    result = AIManager.validate_key(provider, decrypted)
+                    db.update_key_validation(
+                        user_id, provider,
+                        is_valid=result.get("valid", False),
+                        message=result.get("message", "")
+                    )
+
+                    if result.get("valid"):
+                        await update.message.reply_text(
+                            Messages.api_key_valid(provider),
+                            reply_markup=Keyboards.provider_setup(provider, provider_name),
+                            parse_mode="Markdown",
+                        )
+                    else:
+                        await update.message.reply_text(
+                            Messages.api_key_invalid(provider, result.get("message", "")),
+                            reply_markup=Keyboards.provider_setup(provider, provider_name),
+                            parse_mode="Markdown",
+                        )
+                except Exception as e:
+                    logger.error(f"Validation error for {provider}: {e}")
+                    await update.message.reply_text(
+                        Messages.api_key_invalid(provider, str(e)),
+                        reply_markup=Keyboards.provider_setup(provider, provider_name),
+                        parse_mode="Markdown",
+                    )
+            else:
+                await update.message.reply_text(
+                    f"❌ Could not decrypt the stored key for verification.\n"
+                    f"Please check your encryption secret in .env.",
+                    reply_markup=Keyboards.back_button(f"provider_{provider}"),
+                )
+
+        except Exception as e:
+            logger.error(f"API key storage error: {e}")
+            await update.message.reply_text(
+                f"❌ Error saving key: {e}",
+                reply_markup=Keyboards.back_button(f"provider_{provider}"),
+            )
 
     # ─── Error Handler ────────────────────────────
 
@@ -545,12 +728,16 @@ class TelegramBot:
         db = get_db()
         ai_cfg = db.get_ai_config(user_id)
 
+        # Detect active provider
+        provider = db.get_user_provider(user_id) or "deepseek"
+
         text = Messages.ai_settings(
             confidence=ai_cfg.confidence_threshold,
             mode=ai_cfg.analysis_mode,
             news_enabled=ai_cfg.news_check_enabled,
             timeframe=ai_cfg.prediction_timeframe,
             backtest=ai_cfg.backtest_mode,
+            provider=provider,
         )
 
         await query.edit_message_text(
@@ -581,6 +768,32 @@ class TelegramBot:
         await query.edit_message_text(
             text=text,
             reply_markup=Keyboards.reports_menu(),
+            parse_mode="Markdown",
+        )
+
+    async def _show_provider_status(self, query, user_id: int):
+        """Show API key status for all providers"""
+        db = get_db()
+        api_keys = db.get_user_api_keys(user_id)
+
+        # Build status for each provider
+        keys_status = []
+        for provider_id, info in PROVIDER_INFO.items():
+            provider_key = next(
+                (k for k in api_keys if k["provider"] == provider_id),
+                None
+            )
+            keys_status.append({
+                "provider": provider_id,
+                "name": info["name"],
+                "has_key": provider_key is not None and provider_key.get("is_valid", False),
+                "model": provider_key.get("model", "default") if provider_key else "N/A",
+            })
+
+        text = Messages.provider_status(keys_status)
+        await query.edit_message_text(
+            text=text,
+            reply_markup=Keyboards.ai_providers(),
             parse_mode="Markdown",
         )
 
@@ -616,14 +829,18 @@ class TelegramBot:
 
     async def _handle_auto_start(self, query, user_id: int):
         """Start auto trading"""
-        # Check API Key
-        if config.deepseek.api_key == "YOUR_DEEPSEEK_API_KEY":
+        # Check if any API key is configured
+        db = get_db()
+        provider = db.get_user_provider(user_id)
+
+        if not provider:
             await query.edit_message_text(
-                "❌ **DeepSeek API Key required!**\n\n"
-                "1. Create a `.env` file in the project folder\n"
-                "2. Add: `DEEPSEEK_API_KEY=sk-xxxxxxxx`\n"
-                "3. Restart the bot",
-                reply_markup=Keyboards.back_button(),
+                "❌ **No AI Provider configured!**\n\n"
+                "Please set up your AI provider first:\n"
+                "1️⃣ Go to 🤖 AI Settings\n"
+                "2️⃣ Tap 🔑 AI Provider & API Key\n"
+                "3️⃣ Select a provider and enter your API key",
+                reply_markup=Keyboards.back_button("menu_ai"),
                 parse_mode="Markdown",
             )
             return
@@ -667,7 +884,7 @@ class TelegramBot:
             return
 
         await query.edit_message_text(
-            f"⏳ Analyzing {symbol} ({tf}) with DeepSeek AI...",
+            f"⏳ Analyzing {symbol} ({tf}) with AI...",
         )
 
         try:
@@ -686,6 +903,32 @@ class TelegramBot:
             # If auto trading is active and confidence is sufficient
             trade_executed = False
             if auto_mode and self.executor and self.auto_trading.get(user_id):
+                # Check for quota/rate limit errors that should stop trading
+                if result.get("should_stop") or result.get("error") == "QUOTA_EXCEEDED":
+                    self.auto_trading[user_id] = False
+                    if self.risk:
+                        self.risk.pause_trading(user_id)
+                    analysis_text += (
+                        "\n\n───\n"
+                        "⚠️ **Trading auto-paused!**\n"
+                        f"{result.get('reasoning', 'API quota or rate limit exceeded.')}\n"
+                        "Please check your billing and update your API key."
+                    )
+                    await query.edit_message_text(
+                        text=analysis_text,
+                        reply_markup=Keyboards.main_dashboard(),
+                        parse_mode="Markdown",
+                    )
+                    # Send urgent notification
+                    await self.notifications.send_message(
+                        user_id,
+                        "🚨 **Trading Paused - API Quota Exceeded**\n\n"
+                        f"Your AI provider quota has been reached. "
+                        f"Please update your API key or billing.\n\n"
+                        f"Go to 🤖 AI Settings → 🔑 AI Provider to update."
+                    )
+                    return
+
                 confidence = result.get("confidence", 0)
                 ai_cfg = db.get_ai_config(user_id)
 
@@ -716,6 +959,57 @@ class TelegramBot:
             await query.edit_message_text(
                 f"❌ Error: {e}",
                 reply_markup=Keyboards.back_button(),
+            )
+
+    async def _handle_validate_key(self, query, user_id: int, provider: str):
+        """Validate an API key"""
+        db = get_db()
+
+        # Show validating message
+        info = PROVIDER_INFO.get(provider, {})
+        provider_name = info.get("name", provider.title()) if isinstance(info, dict) else provider.title()
+
+        await query.edit_message_text(
+            Messages.api_key_validating(provider),
+            parse_mode="Markdown",
+        )
+
+        try:
+            decrypted = db.get_decrypted_api_key(user_id, provider)
+            if not decrypted:
+                await query.edit_message_text(
+                    Messages.api_key_invalid(provider, "No API key found. Please set your key first."),
+                    reply_markup=Keyboards.provider_setup(provider, provider_name),
+                    parse_mode="Markdown",
+                )
+                return
+
+            result = AIManager.validate_key(provider, decrypted)
+            db.update_key_validation(
+                user_id, provider,
+                is_valid=result.get("valid", False),
+                message=result.get("message", "")
+            )
+
+            if result.get("valid"):
+                await query.edit_message_text(
+                    Messages.api_key_valid(provider),
+                    reply_markup=Keyboards.provider_setup(provider, provider_name),
+                    parse_mode="Markdown",
+                )
+            else:
+                await query.edit_message_text(
+                    Messages.api_key_invalid(provider, result.get("message", "")),
+                    reply_markup=Keyboards.provider_setup(provider, provider_name),
+                    parse_mode="Markdown",
+                )
+
+        except Exception as e:
+            logger.error(f"Key validation error: {e}")
+            await query.edit_message_text(
+                Messages.api_key_invalid(provider, str(e)),
+                reply_markup=Keyboards.provider_setup(provider, provider_name),
+                parse_mode="Markdown",
             )
 
     async def _handle_confidence_select(self, query, user_id: int, data: str):

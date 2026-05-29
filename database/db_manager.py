@@ -12,8 +12,9 @@ from sqlalchemy.pool import StaticPool
 
 from config import config
 from utils.logger import get_logger
+from utils.security import encrypt_api_key, decrypt_api_key, hash_key_for_audit, mask_key
 from database.models import (
-    Base, User, Trade, Setting, AIConfigModel, DailyPerformance,
+    Base, User, Trade, Setting, AIConfigModel, DailyPerformance, UserAPIKey,
     TradeStatus, TradeDirection
 )
 
@@ -259,6 +260,172 @@ class DatabaseManager:
                 "losing_trades": total - wins,
                 "win_rate": (wins / total * 100) if total > 0 else 0,
             }
+
+    # ─── API Key Management (Encrypted) ────────────
+
+    def store_api_key(self, user_id: int, provider: str, api_key: str,
+                      model: str = None) -> Optional[UserAPIKey]:
+        """
+        Store an encrypted API key for a user.
+        The key is AES-256 encrypted before storage.
+        
+        Args:
+            user_id: Telegram user ID
+            provider: 'openai', 'gemini', 'claude', or 'deepseek'
+            api_key: Plaintext API key (encrypted immediately).
+                     If empty, only updates the model without touching the key.
+            model: Optional model name
+        """
+        with self.session() as sess:
+            existing = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == provider
+            ).first()
+
+            if api_key:
+                # New key provided - encrypt and store
+                encrypted = encrypt_api_key(api_key)
+                key_hash = hash_key_for_audit(api_key)
+
+                if existing:
+                    existing.encrypted_key = encrypted
+                    existing.key_hash = key_hash
+                    existing.model = model or existing.model
+                    existing.is_active = True  # Reactivate if previously deleted
+                    existing.is_valid = False  # Reset validation on new key
+                    existing.validation_message = None
+                    existing.updated_at = datetime.utcnow()
+                    key_record = existing
+                else:
+                    key_record = UserAPIKey(
+                        user_id=user_id,
+                        provider=provider,
+                        encrypted_key=encrypted,
+                        key_hash=key_hash,
+                        model=model,
+                    )
+                    sess.add(key_record)
+                    sess.flush()
+
+                masked = mask_key(api_key)
+                logger.info(f"API key stored for user {user_id} | Provider: {provider} | Key: {masked}")
+            elif model and existing:
+                # Only update model, don't touch the encrypted key
+                existing.model = model
+                existing.updated_at = datetime.utcnow()
+                key_record = existing
+                logger.info(f"Model updated for user {user_id}/{provider}: {model}")
+            elif model:
+                # No existing record, can't set model without a key
+                logger.warning(f"Cannot set model without key for user {user_id}/{provider}")
+                return None
+            else:
+                logger.warning(f"No key or model provided for user {user_id}/{provider}")
+                return existing
+
+            return key_record
+
+    def get_decrypted_api_key(self, user_id: int, provider: str) -> Optional[str]:
+        """
+        Get a DECRYPTED API key for temporary use.
+        ⚠️ Only use in RAM - never log or store the decrypted value!
+        
+        Args:
+            user_id: Telegram user ID
+            provider: AI provider name
+            
+        Returns:
+            Decrypted API key string, or None
+        """
+        with self.session() as sess:
+            record = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == provider,
+                UserAPIKey.is_active == True
+            ).first()
+
+            if not record or not record.encrypted_key:
+                return None
+
+            return decrypt_api_key(record.encrypted_key)
+
+    def get_user_api_keys(self, user_id: int) -> List[Dict]:
+        """Get all API key records for a user (masked for display)"""
+        with self.session() as sess:
+            records = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.is_active == True
+            ).all()
+
+            return [{
+                "provider": r.provider,
+                "model": r.model,
+                "is_valid": r.is_valid,
+                "last_validated": r.last_validated.isoformat() if r.last_validated else None,
+                "validation_message": r.validation_message,
+                "key_masked": mask_key("sk-..." if not r.encrypted_key else r.encrypted_key[:20]),
+            } for r in records]
+
+    def update_key_validation(self, user_id: int, provider: str,
+                              is_valid: bool, message: str = None):
+        """Update API key validation status"""
+        with self.session() as sess:
+            record = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == provider
+            ).first()
+            if record:
+                record.is_valid = is_valid
+                record.last_validated = datetime.utcnow()
+                record.validation_message = message
+                record.updated_at = datetime.utcnow()
+                logger.info(f"Key validation updated for user {user_id}/{provider}: valid={is_valid}")
+
+    def delete_api_key(self, user_id: int, provider: str):
+        """Deactivate (soft delete) an API key and reset all state"""
+        with self.session() as sess:
+            record = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.provider == provider
+            ).first()
+            if record:
+                record.is_active = False
+                record.encrypted_key = ""  # Wipe encrypted data
+                record.key_hash = None
+                record.is_valid = False
+                record.model = None
+                record.validation_message = None
+                record.last_validated = None
+                record.updated_at = datetime.utcnow()
+                logger.info(f"API key deactivated for user {user_id}/{provider}")
+
+    def get_user_provider(self, user_id: int) -> Optional[str]:
+        """Get the user's active AI provider (preferred, or first valid key)"""
+        with self.session() as sess:
+            # Check if user has a preferred provider set
+            ai_cfg = sess.query(AIConfigModel).filter(
+                AIConfigModel.user_id == user_id
+            ).first()
+            preferred = ai_cfg.preferred_provider if ai_cfg else None
+
+            if preferred:
+                # Verify the preferred provider has a valid key
+                record = sess.query(UserAPIKey).filter(
+                    UserAPIKey.user_id == user_id,
+                    UserAPIKey.provider == preferred,
+                    UserAPIKey.is_active == True,
+                    UserAPIKey.is_valid == True
+                ).first()
+                if record:
+                    return preferred
+
+            # Fallback: first valid key
+            record = sess.query(UserAPIKey).filter(
+                UserAPIKey.user_id == user_id,
+                UserAPIKey.is_active == True,
+                UserAPIKey.is_valid == True
+            ).first()
+            return record.provider if record else None
 
 
 # Singleton

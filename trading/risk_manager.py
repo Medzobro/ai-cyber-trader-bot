@@ -24,13 +24,29 @@ class RiskManager:
         self.trading_paused: Dict[int, bool] = {}
 
     def can_open_trade(self, user_id: int, symbol: str,
-                       volume: float, direction: str) -> Tuple[bool, str]:
+                       volume: float, direction: str,
+                       stop_loss: float = 0, take_profit: float = 0) -> Tuple[bool, str]:
         """
-        Check if a new trade can be opened
+        Check if a new trade can be opened.
+        
+        MANDATORY: SL and TP are required and enforced.
 
         Returns:
             Tuple[bool, str]: (allowed, reason)
         """
+        # 0. MANDATORY: Stop Loss and Take Profit required
+        if stop_loss <= 0:
+            return False, "❌ Stop Loss (SL) is MANDATORY. Cannot open trade without SL."
+        if take_profit <= 0:
+            return False, "❌ Take Profit (TP) is MANDATORY. Cannot open trade without TP."
+        
+        # Validate SL/TP direction
+        if direction == "buy":
+            if stop_loss >= take_profit:
+                return False, "❌ For BUY: SL must be below TP."
+        elif direction == "sell":
+            if stop_loss <= take_profit:
+                return False, "❌ For SELL: SL must be above TP."
         # 1. Check panic mode
         if self.panic_mode.get(user_id, False):
             return False, "🚨 Panic mode active! All trading stopped."
@@ -100,19 +116,32 @@ class RiskManager:
         return round(lot_size, 2)
 
     def calculate_stop_loss(self, symbol: str, direction: str,
-                            entry_price: float, pips: int = None) -> float:
+                            entry_price: float, pips: int = None,
+                            atr_value: float = None) -> float:
         """
-        Calculate stop loss price
+        Calculate stop loss price dynamically.
+        Uses ATR-based calculation if ATR value is provided (preferred),
+        otherwise falls back to pip-based calculation.
 
         Args:
             symbol: Asset symbol
             direction: buy/sell
             entry_price: Entry price
-            pips: Number of pips
+            pips: Number of pips (fallback)
+            atr_value: ATR value for dynamic calculation
 
         Returns:
             float: Stop loss price
         """
+        if atr_value and atr_value > 0:
+            # ATR-based: SL = entry ± (ATR × 1.5)
+            sl_distance = atr_value * 1.5
+            if direction == "buy":
+                return round(entry_price - sl_distance, 5)
+            else:
+                return round(entry_price + sl_distance, 5)
+        
+        # Fallback to pip-based
         pips = pips or config.trading.stop_loss_pips
 
         if direction == "buy":
@@ -131,8 +160,17 @@ class RiskManager:
                 return entry_price + (pips * 0.0001)
 
     def calculate_take_profit(self, symbol: str, direction: str,
-                              entry_price: float, pips: int = None) -> float:
-        """Calculate take profit price"""
+                              entry_price: float, pips: int = None,
+                              atr_value: float = None) -> float:
+        """Calculate take profit price dynamically (ATR-based preferred)"""
+        if atr_value and atr_value > 0:
+            # ATR-based: TP = entry ± (ATR × 2.5) - better risk/reward
+            tp_distance = atr_value * 2.5
+            if direction == "buy":
+                return round(entry_price + tp_distance, 5)
+            else:
+                return round(entry_price - tp_distance, 5)
+        
         pips = pips or config.trading.take_profit_pips
 
         if direction == "buy":

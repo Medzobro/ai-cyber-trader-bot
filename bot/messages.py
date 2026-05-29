@@ -22,7 +22,7 @@ class Messages:
             f"👋 Welcome, {first_name}, to\n"
             f"🤖 AI Cyber-Trader | Intelligent Trading System\n\n"
             f"🚀 I'm a fully automated trading bot powered by "
-            f"DeepSeek AI for market analysis and trade execution "
+            f"multiple AI providers for market analysis and trade execution "
             f"on MetaTrader 5.\n\n"
             f"📌 Use the buttons below to control the bot."
         )
@@ -33,10 +33,10 @@ class Messages:
         return (
             "📖 **Quick Start Guide:**\n\n"
             "1️⃣ Go to ⚙️ Trade Setup to choose asset and lot size\n"
-            "2️⃣ Go to 🤖 AI Settings to configure your strategy\n"
+            "2️⃣ Go to 🤖 AI Settings → 🔑 AI Provider to set your API key\n"
             "3️⃣ Press 🚀 Start Auto Trading to begin analysis & execution\n"
             "4️⃣ Monitor trades from 📈 Performance Reports\n\n"
-            "⚠️ Make sure to set your DeepSeek API Key in the `.env` file"
+            "⚠️ You can use OpenAI, Gemini, Claude, or DeepSeek with your own key"
         )
 
     # ─── Dashboard ────────────────────────────────
@@ -115,7 +115,8 @@ class Messages:
                     mode: str = "predictive",
                     news_enabled: bool = True,
                     timeframe: str = "M15",
-                    backtest: bool = False) -> str:
+                    backtest: bool = False,
+                    provider: str = "deepseek") -> str:
         """AI configuration settings"""
         mode_names = {
             "predictive": "🧠 Predictive Analysis",
@@ -123,9 +124,18 @@ class Messages:
             "hybrid": "🔀 Hybrid (Analysis + News)",
         }
 
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+
+        provider_display = provider_names.get(provider, provider.title())
+
         return (
             "🤖 **AI Configuration**\n\n"
-            f"🧠 **Model:** DeepSeek AI (deepseek-chat)\n"
+            f"🔑 **AI Provider:** {provider_display}\n"
             f"📊 **Analysis Mode:** {mode_names.get(mode, mode)}\n"
             f"🎯 **Confidence Threshold:** {confidence:.0f}%\n"
             f"⏱️ **Timeframe:** {timeframe}\n"
@@ -133,6 +143,151 @@ class Messages:
             f"🧪 **Backtest Mode:** {'✅ Enabled' if backtest else '❌ Disabled'}\n\n"
             "Choose what to change:"
         )
+
+    # ─── AI Provider Management ───────────────────
+
+    @staticmethod
+    def provider_select() -> str:
+        """AI provider selection screen"""
+        return (
+            "🔑 **AI Provider & API Key Management**\n\n"
+            "Choose your AI provider. You can set your own API key "
+            "for any provider — your key is **AES-256 encrypted** "
+            "in the database and only decrypted in memory during analysis.\n\n"
+            "**Available providers:**\n"
+            "🧠 **OpenAI GPT** — GPT-4o, GPT-4-turbo\n"
+            "💎 **Google Gemini** — Gemini 1.5 Pro\n"
+            "🔮 **Anthropic Claude** — Claude 3.5 Sonnet\n"
+            "🤖 **DeepSeek AI** — deepseek-chat\n\n"
+            "Select a provider to configure:"
+        )
+
+    @staticmethod
+    def api_key_prompt(provider: str) -> str:
+        """Prompt for API key entry"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+
+        key_urls = {
+            "deepseek": "https://platform.deepseek.com/api_keys",
+            "openai": "https://platform.openai.com/api-keys",
+            "gemini": "https://aistudio.google.com/app/apikey",
+            "claude": "https://console.anthropic.com/settings/keys",
+        }
+        url = key_urls.get(provider, "")
+
+        return (
+            f"🔑 **Set API Key for {name}**\n\n"
+            f"Please send your API key as a message.\n"
+            f"Get your key from: {url}\n\n"
+            f"⚠️ **Security:** Your key will be AES-256 encrypted "
+            f"before storage and only held in memory during analysis.\n\n"
+            f"Type /cancel to abort."
+        )
+
+    @staticmethod
+    def api_key_set(provider: str, model: str = "") -> str:
+        """Confirmation that API key was set"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        msg = f"✅ **API Key Saved!**\n\nProvider: **{name}**\n🔒 Key: AES-256 encrypted"
+        if model:
+            msg += f"\n📦 Model: {model}"
+        return msg
+
+    @staticmethod
+    def api_key_removed(provider: str) -> str:
+        """Confirmation that API key was removed"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        return f"🗑️ API key for **{name}** has been removed."
+
+    @staticmethod
+    def api_key_validating(provider: str) -> str:
+        """Validating API key message"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        return f"⏳ Validating API key for **{name}**..."
+
+    @staticmethod
+    def api_key_valid(provider: str) -> str:
+        """API key validation success"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        return f"✅ **Key Valid!**\n\n**{name}** API key is working correctly.\nYou're ready to trade!"
+
+    @staticmethod
+    def api_key_invalid(provider: str, error: str = "") -> str:
+        """API key validation failure"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        msg = f"❌ **Key Invalid!**\n\n**{name}** API key validation failed."
+        if error:
+            msg += f"\n⚠️ Error: {error}"
+        msg += "\n\nPlease check your key and try again."
+        return msg
+
+    @staticmethod
+    def provider_model_select(provider: str) -> str:
+        """Model selection for a provider"""
+        provider_names = {
+            "deepseek": "🤖 DeepSeek AI",
+            "openai": "🧠 OpenAI GPT",
+            "gemini": "💎 Google Gemini",
+            "claude": "🔮 Anthropic Claude",
+        }
+        name = provider_names.get(provider, provider.title())
+        return f"📦 **Select Model for {name}**\n\nChoose a model to use for market analysis:"
+
+    @staticmethod
+    def provider_status(keys_status: list) -> str:
+        """Show which API keys are configured"""
+        lines = ["🔑 **API Keys Status**\n"]
+        icon_map = {
+            "deepseek": "🤖",
+            "openai": "🧠",
+            "gemini": "💎",
+            "claude": "🔮",
+        }
+        for ks in keys_status:
+            provider = ks.get("provider", "unknown")
+            icon = icon_map.get(provider, "🔑")
+            if ks.get("has_key"):
+                lines.append(f"{icon} **{ks.get('name', provider)}:** ✅ Key set | Model: {ks.get('model', 'default')}")
+            else:
+                lines.append(f"{icon} **{ks.get('name', provider)}:** ❌ No key")
+        lines.append("\nTap a provider above to manage its key.")
+        return "\n".join(lines)
 
     # ─── Trade Notification ───────────────────────
 
@@ -264,7 +419,7 @@ class Messages:
         indicators = result.get("indicators", {})
 
         return (
-            "🔍 **Market Analysis - AI DeepSeek**\n\n"
+            "🔍 **Market Analysis - AI**\n\n"
             f"🏆 **Asset:** {result.get('symbol', 'N/A')}\n"
             f"⏱️ **Timeframe:** {result.get('timeframe', 'N/A')}\n"
             f"💵 **Current Price:** {indicators.get('current_price', 'N/A')}\n\n"
