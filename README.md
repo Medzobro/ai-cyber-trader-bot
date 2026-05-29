@@ -231,7 +231,7 @@ DB_PATH=data/trader_bot.db
 source venv/bin/activate
 
 # تشغيل البوت
-python main.py
+python3 main.py
 ```
 
 ستظهر لك رسالة البانر:
@@ -247,11 +247,11 @@ python main.py
 
 ```bash
 # استخدام nohup
-nohup python main.py > logs/bot.log 2>&1 &
+nohup python3 main.py > logs/bot.log 2>&1 &
 
 # أو استخدام screen/tmux
 screen -S trader
-python main.py
+python3 main.py
 # CTRL+A, D للانفصال
 ```
 
