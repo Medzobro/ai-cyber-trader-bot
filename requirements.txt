@@ -16,8 +16,8 @@ google-generativeai>=0.8.0
 # Security (AES-256 encryption)
 cryptography>=42.0.0
 
-# MT5 Trading
-MetaTrader5==5.0.45
+# MT5 Trading (optional - Linux runs in simulation mode)
+# MetaTrader5==5.0.45
 
 # Database
 SQLAlchemy==2.0.36

@@ -121,22 +121,25 @@ async def main():
         logger.error(f"Setup failed: {e}")
         raise
 
-    # Graceful shutdown handler
-    def signal_handler(sig, frame):
-        logger.info("\nShutting down...")
-        if bot.mt5:
-            bot.mt5.disconnect()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
     # Start the bot
     logger.info("Starting bot polling...")
     logger.info("=" * 50)
 
     try:
         await bot.start()
+
+        # Keep the event loop running until a signal is received
+        stop_event = asyncio.Event()
+
+        def _signal_handler(sig):
+            logger.info(f"Received signal {sig.name}, shutting down...")
+            stop_event.set()
+
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, lambda s=sig: _signal_handler(s))
+
+        await stop_event.wait()
     except KeyboardInterrupt:
         logger.info("\nInterrupted")
     except Exception as e:

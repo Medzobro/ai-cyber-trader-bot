@@ -83,7 +83,9 @@ class TelegramBot:
         self._start_auto_trading_scheduler()
 
         logger.info("Telegram bot started. Waiting for commands...")
-        await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
+        await self.app.initialize()
+        await self.app.start()
+        await self.app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
     async def stop(self):
         """Stop the bot"""
@@ -91,6 +93,7 @@ class TelegramBot:
             self._scheduler.shutdown(wait=False)
             logger.info("Schedulers stopped")
         if self.app:
+            await self.app.updater.stop()
             await self.app.stop()
             await self.app.shutdown()
         logger.info("Bot stopped")
