@@ -368,7 +368,9 @@ class Messages:
                 f"${pnl:+.2f} | {t.opened_at.strftime('%H:%M')}"
             )
 
-        return "\n".join(lines)
+        text = "\n".join(lines)
+        # Telegram message limit safety
+        return text[:3800] + "\n..." if len(text) > 3800 else text
 
     # ─── Risk Status ──────────────────────────────
 
@@ -417,10 +419,13 @@ class Messages:
 
         confidence = result.get("confidence", 0)
         reasoning = result.get("reasoning", "No analysis available")
+        # Truncate long reasoning to stay within Telegram limits
+        if len(reasoning) > 800:
+            reasoning = reasoning[:797] + "..."
 
         indicators = result.get("indicators", {})
 
-        return (
+        text = (
             "🔍 **Market Analysis - AI**\n\n"
             f"🏆 **Asset:** {result.get('symbol', 'N/A')}\n"
             f"⏱️ **Timeframe:** {result.get('timeframe', 'N/A')}\n"
@@ -433,6 +438,7 @@ class Messages:
             f"📊 **ADX:** {indicators.get('adx', 'N/A')}\n\n"
             f"🕐 {result.get('timestamp', '')}"
         )
+        return text[:3900] + "\n..." if len(text) > 3900 else text
 
     # ─── General ──────────────────────────────────
 

@@ -267,21 +267,33 @@ class TradeExecutor:
     def close_trade_by_id(self, trade_id: int, user_id: int) -> Dict:
         """Close a specific trade by ID"""
         db = get_db()
-        trade = None
+        trade = db.get_open_trades(user_id)
+        trade_obj = next((t for t in trade if t.id == trade_id), None)
+
+        if not trade_obj:
+            return {"success": False, "message": f"❌ Trade #{trade_id} not found or already closed"}
 
         # Close in MT5 first
-        if self.mt5 and trade and trade.ticket:
-            self.mt5.close_position(trade.ticket, trade.symbol)
+        if self.mt5 and trade_obj.ticket:
+            self.mt5.close_position(trade_obj.ticket, trade_obj.symbol)
 
         # Update database
         close_price = 0
         if self.mt5:
-            tick = self.mt5.get_tick(trade.symbol if trade else "XAUUSD")
-            close_price = tick["bid"] if tick else 0
+            tick = self.mt5.get_tick(trade_obj.symbol)
+            close_price = tick["bid"] if tick else trade_obj.open_price
+        else:
+            close_price = trade_obj.open_price
 
-        db.close_trade(trade_id, close_price, 0, 0)
+        # Calculate simple PnL for closing
+        price_diff = close_price - trade_obj.open_price
+        if trade_obj.direction == "sell":
+            price_diff = -price_diff
+        pnl = price_diff * trade_obj.volume * 100
 
-        return {"success": True, "message": "✅ Trade closed successfully"}
+        db.close_trade(trade_id, close_price, pnl=pnl, pnl_percentage=0)
+
+        return {"success": True, "message": f"✅ Trade #{trade_id} closed @ {close_price}"}
 
 
 # Singleton

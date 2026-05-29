@@ -24,7 +24,8 @@ _MASTER_KEY: Optional[bytes] = None
 def _derive_key(secret: str, salt: bytes = None) -> bytes:
     """Derive a Fernet-compatible key from a secret string using PBKDF2"""
     if salt is None:
-        salt = b"ai-cyber-trader-salt-2024"  # Fixed salt for reproducibility
+        # Use a portion of the secret itself as dynamic salt (not perfect, but better than hardcoded)
+        salt = hashlib.sha256(secret.encode()).digest()[:16]
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -44,9 +45,15 @@ def _get_fernet() -> Fernet:
             from config import config
             secret = config.ai.encryption_secret
         except Exception:
-            secret = os.getenv(
-                "ENCRYPTION_SECRET",
-                "ai-cyber-trader-default-secret-change-in-production"
+            secret = None
+
+        # CRITICAL: If no secret is configured, raise immediately so the admin knows
+        if not secret:
+            secret = os.getenv("ENCRYPTION_SECRET")
+        if not secret or secret == "change-me-to-a-random-64-char-string":
+            raise RuntimeError(
+                "FATAL: ENCRYPTION_SECRET is not set or is still the default placeholder. "
+                "Please set a strong secret in your .env file before starting the bot."
             )
         _MASTER_KEY = _derive_key(secret)
         logger.info("Encryption cipher initialized (AES-256/Fernet)")

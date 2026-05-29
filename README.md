@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/python-3.10+-green" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
-  <img src="https://img.shields.io/badge/ai-DeepSeek-purple" alt="DeepSeek AI">
+  <img src="https://img.shields.io/badge/AI-Multi--Provider-purple" alt="Multi-Provider AI">
 </p>
 
 <h1 align="center">🤖 AI Cyber-Trader Bot</h1>
-<h3 align="center">Intelligent Trading Telegram Bot powered by DeepSeek AI & MetaTrader 5</h3>
+<h3 align="center">Intelligent Trading Telegram Bot powered by Multi-Provider AI & MetaTrader 5</h3>
 
 <p align="center">
-  <strong>A fully automated trading system combining AI-driven market analysis with MT5 execution — all from an interactive Telegram interface</strong>
+  <strong>A fully automated, multi-tenant trading system combining AI-driven market analysis with MT5 execution — all from an interactive Telegram interface</strong>
 </p>
 
 ---
@@ -25,6 +25,7 @@
 - [🎮 Running the Bot](#-running-the-bot)
 - [📱 Bot Commands](#-bot-commands)
 - [🤖 AI Configuration](#-ai-configuration)
+- [🛡️ NewsGuard Protection](#️-newsguard-protection)
 - [🔒 Risk Management](#-risk-management)
 - [📂 File Structure](#-file-structure)
 - [🛠️ Tech Stack](#️-tech-stack)
@@ -37,14 +38,16 @@
 
 ## 📋 Overview
 
-**AI Cyber-Trader Bot** is a professional Telegram bot that serves as an intelligent control panel for managing and executing automated trading operations (Forex/Gold/Indices) on **MetaTrader 5**, powered by **DeepSeek AI** for market analysis and decision-making.
+**AI Cyber-Trader Bot v2.0** is a professional, multi-tenant Telegram bot that serves as an intelligent control panel for managing and executing automated trading operations (Forex/Gold/Indices) on **MetaTrader 5**.
+
+Unlike single-tenant bots, **every user brings their own AI API key** and selects their preferred provider. All data is fully isolated per user (`telegram_id` as primary key) and API keys are **AES-256 encrypted** at rest.
 
 The system consists of three core components:
 
 | Component | Description |
 |-----------|-------------|
 | 📱 **Frontend** | Fully interactive Telegram interface with inline keyboards |
-| 🧠 **Backend & AI** | Python server running continuous analysis with DeepSeek AI + technical indicators |
+| 🧠 **Backend & AI** | Python server with multi-provider AI via Factory Pattern |
 | 🔗 **Execution Bridge** | Direct connection to MT5 for high-speed order execution |
 
 ---
@@ -56,12 +59,26 @@ The system consists of three core components:
 - Real-time balance, daily P&L, and open positions display
 - Auto-refresh functionality
 
-### 🧠 AI Engine
-- **DeepSeek API** integration for market analysis
+### 🧠 Multi-Provider AI Engine (Factory Pattern)
+Each user chooses their own AI provider and brings their own API key:
+
+| Provider | Models |
+|----------|--------|
+| 🧠 **OpenAI GPT** | GPT-4o, GPT-4o-mini, GPT-4-turbo |
+| 💎 **Google Gemini** | Gemini 2.0 Flash, Gemini 1.5 Pro |
+| 🔮 **Anthropic Claude** | Claude 3.5 Sonnet, Claude 3 Opus |
+| 🤖 **DeepSeek AI** | deepseek-chat, deepseek-reasoner |
+
 - Multiple analysis modes (Predictive, News Scanning, Hybrid)
 - Comprehensive technical indicators (RSI, MACD, Bollinger, ADX, ATR, Stochastic)
 - **XGBoost** & **Scikit-Learn** support for ML predictions
 - Configurable confidence thresholds (60% - 90%)
+
+### 🛡️ NewsGuard — News-Driven Auto-Close
+- Monitors high-impact economic news every 5 minutes
+- **Automatically closes open positions** before volatile events (NFP, CPI, FOMC...)
+- Pauses auto-trading during news storms
+- **Per-user ON/OFF toggle** in AI Settings
 
 ### 💹 Multi-Asset Support
 | Symbol | Asset |
@@ -76,16 +93,23 @@ The system consists of three core components:
 
 ### 🔒 Advanced Risk Management
 - **Panic Button** 🚨 — instant close all positions
+- **Mandatory SL/TP** — no trade opens without Stop Loss & Take Profit
 - Daily loss limit (auto-stop)
 - Max open positions cap
 - Automatic position size calculation
 - Risk levels (Low 🟢, Medium 🟡, High 🟠, Critical 🔴)
 
+### 🔐 Security
+- **AES-256 encryption** for all user API keys (Fernet + PBKDF2)
+- Keys are **only decrypted in RAM** during API calls, then discarded
+- SHA-256 audit hashes for key tracking
+- Multi-tenant database isolation per `telegram_id`
+
 ### 📊 Performance & Reports
 - Daily and all-time performance reports
 - Trade history with profit/loss tracking
 - Win rate statistics
-- Instant push notifications for trade open/close
+- Instant push notifications for trade open/close/NewsGuard alerts
 
 ### 🔄 Simulation Mode
 - Full functionality **without a real MT5 connection**
@@ -100,31 +124,34 @@ The system consists of three core components:
 ai-cyber-trader-bot/
 │
 ├── 🧠 ai_engine/              # AI & ML Engine
-│   ├── deepseek_client.py     # DeepSeek API Client
-│   ├── indicators.py          # Technical Indicators (RSI, MACD, ADX...)
+│   ├── ai_manager.py          # Factory Pattern for 4 AI providers
 │   ├── market_analyzer.py     # Market Analyzer (data + AI)
-│   └── predictor.py           # AI + ML Predictor (XGBoost)
+│   ├── indicators.py          # 8+ Technical Indicators
+│   ├── news_scraper.py        # Economic News + ForexFactory
+│   └── predictor.py           # AI + XGBoost ML Predictor
 │
 ├── 🤖 bot/                    # Telegram Bot
-│   ├── handlers.py            # Command & Callback Handlers
-│   ├── keyboards.py           # Inline Keyboards
-│   ├── messages.py            # Message Templates
-│   └── notifications.py       # Push Notification Manager
+│   ├── handlers.py            # 7 Commands + 30+ Callback Handlers
+│   ├── keyboards.py           # 15+ Interactive Inline Keyboards
+│   ├── messages.py            # 15+ Message Templates
+│   └── notifications.py       # Push Notifications + Broadcast
 │
 ├── 💹 trading/                # Trading System
-│   ├── mt5_bridge.py          # MetaTrader 5 Bridge
-│   ├── risk_manager.py        # Risk Manager
-│   └── trade_executor.py      # Trade Executor
+│   ├── mt5_bridge.py          # MT5 Connection + Simulation Mode
+│   ├── risk_manager.py        # Risk Manager + Panic Mode
+│   ├── trade_executor.py      # Automated + Manual Execution
+│   └── news_guard.py          # 🛡️ News-Driven Auto-Close
 │
 ├── 🗄️ database/               # Database
-│   ├── models.py              # SQLAlchemy Models
-│   └── db_manager.py          # Database Manager
+│   ├── models.py              # 6 Tables (Users, Trades, Settings, AI, Performance, API Keys)
+│   └── db_manager.py          # CRUD + AES-256 Encryption + Migrations
 │
 ├── 🛠️ utils/                  # Utilities
-│   ├── logger.py              # Logging System
-│   └── helpers.py             # Helper Functions
+│   ├── logger.py              # Centralized Logging
+│   ├── helpers.py             # Formatting Helpers
+│   └── security.py            # AES-256 + Hashing
 │
-├── ⚙️ config.py               # Central Configuration
+├── ⚙️ config.py               # Central Configuration (dataclasses)
 ├── 🚀 main.py                 # Entry Point
 ├── 📦 requirements.txt        # Dependencies
 └── 📄 .env.example            # Environment Variables Template
@@ -139,7 +166,7 @@ ai-cyber-trader-bot/
 | **Python** | 3.10+ | ⚠️ Required |
 | **pip** | Latest | For package installation |
 | **MetaTrader 5** | Any | Optional (for live trading) |
-| **DeepSeek API Key** | — | From [platform.deepseek.com](https://platform.deepseek.com) |
+| **AI API Key** | — | User's own key (OpenAI, Gemini, Claude, or DeepSeek) |
 | **Telegram Bot Token** | — | From [@BotFather](https://t.me/BotFather) |
 
 > ℹ️ On **Linux**, the MetaTrader5 library requires **Wine** to run. You can use simulation mode instead.
@@ -193,10 +220,15 @@ Fill in the required API keys (see [Configuration](#️-configuration) below).
 3. Choose a name and username for your bot
 4. Copy the token you receive
 
-#### 🧠 DeepSeek API Key:
-1. Sign up at [platform.deepseek.com](https://platform.deepseek.com)
-2. Navigate to API Keys
-3. Create a new key and copy it
+#### 🧠 AI Provider API Key (User-managed):
+Each user sets their own key inside the bot, but you can set server defaults in `.env`:
+
+| Provider | URL |
+|----------|-----|
+| DeepSeek | https://platform.deepseek.com |
+| OpenAI | https://platform.openai.com/api-keys |
+| Gemini | https://aistudio.google.com/app/apikey |
+| Claude | https://console.anthropic.com/settings/keys |
 
 #### 💹 MT5 Credentials (Optional):
 - `MT5_LOGIN`: Your trading account number
@@ -214,10 +246,14 @@ Edit the `.env` file with your credentials:
 TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 ADMIN_IDS=123456789
 
-# ─── DeepSeek AI ────────────────────────────────
-DEEPSEEK_API_KEY=sk-your-deepseek-api-key-here
-DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-DEEPSEEK_MODEL=deepseek-chat
+# ─── Encryption (CRITICAL: change in production!) ──
+ENCRYPTION_SECRET=your-64-char-random-secret-here
+
+# ─── AI Provider Defaults (optional server fallbacks) ──
+DEEPSEEK_API_KEY=sk-...
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
+CLAUDE_API_KEY=sk-ant-...
 
 # ─── MetaTrader 5 ───────────────────────────────
 MT5_LOGIN=12345678
@@ -227,6 +263,8 @@ MT5_SERVER=ICMarkets-Demo
 # ─── Database ───────────────────────────────────
 DB_PATH=data/trader_bot.db
 ```
+
+> ⚠️ **Security:** Never commit `.env` to git. It is already in `.gitignore`.
 
 ---
 
@@ -245,10 +283,11 @@ python3 main.py
 You'll see the startup banner:
 
 ```
-╔══════════════════════════════════════════╗
-║     🤖 AI Cyber-Trader Bot v1.0.0       ║
-║   Intelligent Trading System - DeepSeek AI ║
-╚══════════════════════════════════════════╝
+╔══════════════════════════════════════════════╗
+║     🤖 AI Cyber-Trader Bot v2.0.0          ║
+║  Multi-Provider AI Trading (Multi-Tenant)   ║
+║  OpenAI | Gemini | Claude | DeepSeek        ║
+╚══════════════════════════════════════════════╝
 ```
 
 ### Run as Background Service (Linux):
@@ -261,12 +300,6 @@ nohup python3 main.py > logs/bot.log 2>&1 &
 screen -S trader
 python3 main.py
 # CTRL+A, D to detach
-```
-
-### Run with Docker (coming soon):
-
-```bash
-docker-compose up -d
 ```
 
 ---
@@ -305,6 +338,15 @@ After starting the bot, find it on Telegram and use these commands:
 
 ## 🤖 AI Configuration
 
+### Setting Up Your AI Provider:
+1. Go to **🤖 AI Settings**
+2. Tap **🔑 AI Provider & API Key**
+3. Select your preferred provider (OpenAI, Gemini, Claude, DeepSeek)
+4. Tap **🔑 Set API Key** and send your key
+5. Tap **✅ Validate Key** to confirm it works
+
+> 🔒 Your key is **AES-256 encrypted** before storage and only held in memory during analysis.
+
 ### Analysis Modes:
 
 | Mode | Description |
@@ -335,6 +377,19 @@ After starting the bot, find it on Telegram and use these commands:
 
 ---
 
+## 🛡️ NewsGuard Protection
+
+**NewsGuard** is an intelligent shield that monitors economic news and protects your account:
+
+- 🔍 Scans for high-impact events (NFP, CPI, FOMC, GDP...) every **5 minutes**
+- ⏰ Triggers when news is **imminent within 15 minutes**
+- 🔒 **Auto-closes all open positions** for the affected symbol
+- ⏸️ **Pauses auto-trading** until the event passes
+- 📱 Sends an instant alert with closed positions & P&L
+- 🎛️ **Per-user toggle** — enable/disable from 🤖 AI Settings
+
+---
+
 ## 🔒 Risk Management
 
 ### Risk Levels:
@@ -350,9 +405,10 @@ After starting the bot, find it on Telegram and use these commands:
 
 - ⚠️ **Max Daily Loss:** 5% (configurable)
 - 📦 **Max Open Positions:** 3
-- 🛡️ **Auto Stop Loss:** 500 pips
-- 💰 **Auto Take Profit:** 800 pips
+- 🛡️ **Auto Stop Loss:** Dynamic ATR-based (mandatory)
+- 💰 **Auto Take Profit:** Dynamic ATR-based (mandatory)
 - 🚨 **Panic Button:** Instant close all positions
+- 🛡️ **NewsGuard:** Auto-close before high-impact news
 
 ---
 
@@ -370,33 +426,36 @@ ai-cyber-trader-bot/
 │
 ├── ai_engine/                       # 🧠 AI & ML Engine
 │   ├── __init__.py
-│   ├── deepseek_client.py           #   - DeepSeek API Client (OpenAI-compatible)
-│   ├── indicators.py                #   - 8 Technical Indicators + Candlestick Patterns
+│   ├── ai_manager.py                #   - Factory Pattern (OpenAI/Gemini/Claude/DeepSeek)
+│   ├── indicators.py                #   - 8+ Technical Indicators + Candlestick Patterns
 │   ├── market_analyzer.py           #   - Market Analysis + Data Simulation
+│   ├── news_scraper.py              #   - Economic News (ForexFactory + Simulation)
 │   └── predictor.py                 #   - AI Prediction + XGBoost ML
 │
 ├── bot/                             # 🤖 Telegram Interface
 │   ├── __init__.py
-│   ├── handlers.py                  #   - 7 Command Handlers + 30+ Callback Handlers
-│   ├── keyboards.py                 #   - 15 Interactive Inline Keyboards
+│   ├── handlers.py                  #   - 7 Commands + 30+ Callback Handlers
+│   ├── keyboards.py                 #   - 15+ Interactive Inline Keyboards
 │   ├── messages.py                  #   - 15+ Message Templates
-│   └── notifications.py            #   - Push Notifications + Broadcast
+│   └── notifications.py             #   - Push Notifications + Broadcast
 │
 ├── trading/                         # 💹 Trading System
 │   ├── __init__.py
-│   ├── mt5_bridge.py               #   - MT5 Connection + Full Simulation Mode
-│   ├── risk_manager.py             #   - 7 Risk Checks + Panic Mode
-│   └── trade_executor.py           #   - Automated + Manual Execution
+│   ├── mt5_bridge.py                #   - MT5 Connection + Full Simulation Mode
+│   ├── risk_manager.py              #   - 7 Risk Checks + Panic Mode
+│   ├── trade_executor.py            #   - Automated + Manual Execution
+│   └── news_guard.py                #   - 🛡️ News-Driven Auto-Close
 │
 ├── database/                        # 🗄️ Database
 │   ├── __init__.py
-│   ├── models.py                   #   - 5 Tables (Users, Trades, Settings, AI, Performance)
-│   └── db_manager.py               #   - CRUD Manager with Context Manager
+│   ├── models.py                    #   - 6 Tables (Users, Trades, Settings, AI, Performance, API Keys)
+│   └── db_manager.py                #   - CRUD + Encryption + Auto-Migrations
 │
 └── utils/                           # 🛠️ Utilities
     ├── __init__.py
     ├── logger.py                    #   - Centralized Logging System
-    └── helpers.py                   #   - Currency & Percentage Formatting
+    ├── helpers.py                   #   - Currency & Percentage Formatting
+    └── security.py                  #   - AES-256 + PBKDF2 + Hashing
 ```
 
 ---
@@ -407,14 +466,15 @@ ai-cyber-trader-bot/
 |------------|-------|
 | **Python 3.10+** | Core programming language |
 | **python-telegram-bot** | Telegram Bot API (Async) |
-| **OpenAI SDK** | DeepSeek API communication |
+| **OpenAI SDK** | OpenAI & DeepSeek API communication |
 | **SQLAlchemy** | Database ORM |
 | **SQLite** | Local database |
 | **Pandas & NumPy** | Data processing & indicators |
 | **Scikit-Learn** | ML preprocessing |
 | **XGBoost** | Advanced ML model |
 | **MetaTrader5** | Trading platform bridge |
-| **APScheduler** | Periodic task scheduling |
+| **APScheduler** | Periodic task scheduling (NewsGuard) |
+| **cryptography** | AES-256 encryption |
 | **python-dotenv** | Environment variable management |
 
 ---
@@ -423,6 +483,7 @@ ai-cyber-trader-bot/
 
 ### 🔐 Security:
 - **Never share your `.env` file** — it's already in `.gitignore`
+- **Change `ENCRYPTION_SECRET`** in production to a random 64-character string
 - Use strong passwords for your MT5 account
 - Keep a backup of your `.env` file
 
@@ -458,11 +519,11 @@ nano .env  # Add TELEGRAM_BOT_TOKEN=your_bot_token
 </details>
 
 <details>
-<summary><b>❌ Error: Invalid DeepSeek API Key</b></summary>
+<summary><b>❌ Error: Invalid AI API Key</b></summary>
 
-- Verify the key in `.env`: `DEEPSEEK_API_KEY=sk-...`
-- Make sure you have credits in your DeepSeek account
-- Test the connection manually at [platform.deepseek.com](https://platform.deepseek.com)
+- Verify the key in the bot's 🤖 AI Settings
+- Make sure you have credits in your AI account
+- Test the connection using the ✅ Validate Key button
 </details>
 
 <details>
@@ -482,17 +543,29 @@ chmod 755 data logs
 ```
 </details>
 
+<details>
+<summary><b>❌ NewsGuard not appearing</b></summary>
+
+Make sure you have open positions. NewsGuard only activates when:
+1. You have **open trades**
+2. **NewsGuard is enabled** in 🤖 AI Settings
+3. **High-impact news** is imminent within 15 minutes
+</details>
+
 ---
 
 ## 🔮 Roadmap
 
+- [x] Multi-provider AI support (OpenAI, Gemini, Claude, DeepSeek)
+- [x] AES-256 encrypted API key storage
+- [x] NewsGuard — auto-close on high-impact news
+- [x] NewsGuard per-user toggle
 - [ ] Historical data backtesting system
 - [ ] MetaAPI support for cloud servers
-- [ ] Real economic news integration (ForexFactory API)
+- [ ] Real-time economic news WebSocket feed
 - [ ] Web Dashboard
 - [ ] Docker & docker-compose support
 - [ ] Email notifications
-- [ ] Multi-user support with permissions
 - [ ] Trading strategy sharing & cloning
 
 ---

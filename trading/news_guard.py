@@ -169,14 +169,29 @@ class NewsGuard:
         if self.mt5:
             try:
                 pip_value = self.mt5.calculate_pip_value(symbol, volume)
-                # Rough pip-based PnL estimate
-                raw_pips = price_diff / (0.1 if "XAU" in symbol else 0.0001)
+                # Determine pip size from MT5 symbol info or symbol name
+                pip_size = self._get_pip_size(symbol)
+                raw_pips = price_diff / pip_size
                 return raw_pips * pip_value
             except Exception:
                 pass
 
         # Fallback: simple price difference (best-effort)
         return price_diff * volume * 100
+
+    @staticmethod
+    def _get_pip_size(symbol: str) -> float:
+        """Return pip size for a symbol (JPY=0.01, XAU=0.1, indices=1.0, others=0.0001)"""
+        symbol = symbol.upper()
+        if "JPY" in symbol:
+            return 0.01
+        if any(s in symbol for s in ("XAU", "XAG", "GOLD", "SILVER")):
+            return 0.1
+        if any(s in symbol for s in ("US30", "NAS100", "SPX", "DJ", "NDX", "UK100", "GER40")):
+            return 1.0
+        if "BTC" in symbol:
+            return 1.0
+        return 0.0001
 
     @staticmethod
     def _build_alert_message(result: Dict) -> str:
