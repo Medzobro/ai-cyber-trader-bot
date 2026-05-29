@@ -90,10 +90,13 @@ class NotificationManager:
             await self.app.bot.send_message(
                 chat_id=user_id,
                 text=f"{prefix} {message}",
+                parse_mode="Markdown",
             )
 
         except Exception as e:
             logger.error(f"❌ Failed to send alert: {e}")
+
+
 
     async def broadcast_to_admins(self, message: str):
         """Send message to all admins"""

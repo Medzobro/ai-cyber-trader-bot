@@ -38,9 +38,20 @@ class DatabaseManager:
         self._create_tables()
 
     def _create_tables(self):
-        """Create all tables"""
+        """Create all tables and run lightweight migrations"""
         Base.metadata.create_all(bind=self.engine)
+        self._migrate_ai_config()
         logger.info("✅ Database tables created/verified")
+
+    def _migrate_ai_config(self):
+        """Add missing columns to ai_configs for existing SQLite databases"""
+        with self.engine.connect() as conn:
+            from sqlalchemy import inspect
+            inspector = inspect(self.engine)
+            columns = [c['name'] for c in inspector.get_columns('ai_configs')]
+            if 'news_guard_enabled' not in columns:
+                conn.execute("ALTER TABLE ai_configs ADD COLUMN news_guard_enabled BOOLEAN DEFAULT 1")
+                logger.info("🗃️ Migration applied: added news_guard_enabled to ai_configs")
 
     @contextmanager
     def session(self) -> Session:

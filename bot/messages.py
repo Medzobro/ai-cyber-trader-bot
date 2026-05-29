@@ -116,7 +116,8 @@ class Messages:
                     news_enabled: bool = True,
                     timeframe: str = "M15",
                     backtest: bool = False,
-                    provider: str = "deepseek") -> str:
+                    provider: str = "deepseek",
+                    news_guard_enabled: bool = True) -> str:
         """AI configuration settings"""
         mode_names = {
             "predictive": "🧠 Predictive Analysis",
@@ -140,6 +141,7 @@ class Messages:
             f"🎯 **Confidence Threshold:** {confidence:.0f}%\n"
             f"⏱️ **Timeframe:** {timeframe}\n"
             f"📰 **News Check:** {'✅ Enabled' if news_enabled else '❌ Disabled'}\n"
+            f"🛡️ **NewsGuard Auto-Close:** {'✅ Enabled' if news_guard_enabled else '❌ Disabled'}\n"
             f"🧪 **Backtest Mode:** {'✅ Enabled' if backtest else '❌ Disabled'}\n\n"
             "Choose what to change:"
         )

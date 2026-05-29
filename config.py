@@ -31,6 +31,14 @@ class DeepSeekConfig:
 
 
 @dataclass
+class GitHubConfig:
+    """GitHub API settings"""
+    token: str = os.getenv("GITHUB_TOKEN", "")
+    base_url: str = os.getenv("GITHUB_BASE_URL", "https://api.github.com")
+    username: str = os.getenv("GITHUB_USERNAME", "")
+
+
+@dataclass
 class TradingConfig:
     """Trading settings"""
     # MT5 Connection
@@ -103,6 +111,7 @@ class Config:
     """Main project configuration"""
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
     deepseek: DeepSeekConfig = field(default_factory=DeepSeekConfig)
+    github: GitHubConfig = field(default_factory=GitHubConfig)
     trading: TradingConfig = field(default_factory=TradingConfig)
     ai: AIConfig = field(default_factory=AIConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
