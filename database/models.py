@@ -158,3 +158,47 @@ class UserAPIKey(Base):
 
     def __repr__(self):
         return f"<UserAPIKey(user={self.user_id}, provider={self.provider}, valid={self.is_valid})>"
+
+
+class BacktestResult(Base):
+    """Stored backtest results"""
+    __tablename__ = "backtest_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, index=True)
+
+    symbol = Column(String(20), nullable=False)
+    timeframe = Column(String(10), nullable=False)
+    strategy = Column(String(50), nullable=False, default="indicators")
+
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+
+    initial_balance = Column(Float, default=10_000.0)
+    final_balance = Column(Float, default=10_000.0)
+
+    total_trades = Column(Integer, default=0)
+    winning_trades = Column(Integer, default=0)
+    losing_trades = Column(Integer, default=0)
+    win_rate = Column(Float, default=0.0)
+    profit_factor = Column(Float, default=0.0)
+    total_return_pct = Column(Float, default=0.0)
+    max_drawdown_pct = Column(Float, default=0.0)
+    sharpe_ratio = Column(Float, default=0.0)
+    sortino_ratio = Column(Float, default=0.0)
+    avg_trade_return = Column(Float, default=0.0)
+    avg_win = Column(Float, default=0.0)
+    avg_loss = Column(Float, default=0.0)
+    largest_win = Column(Float, default=0.0)
+    largest_loss = Column(Float, default=0.0)
+
+    equity_curve = Column(Text, nullable=True)   # JSON list
+    trades_json = Column(Text, nullable=True)      # JSON list
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return (
+            f"<BacktestResult(id={self.id}, symbol={self.symbol}, "
+            f"return={self.total_return_pct:.2f}%, trades={self.total_trades})>"
+        )

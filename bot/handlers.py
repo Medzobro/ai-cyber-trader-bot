@@ -20,6 +20,8 @@ from utils.helpers import format_currency, format_percentage
 from database.db_manager import get_db
 from ai_engine.ai_manager import AIManager, PROVIDER_INFO
 from trading.news_guard import NewsGuard
+from trading.backtester import Backtester
+from trading.backtest_report import BacktestReport
 from .keyboards import Keyboards
 from .messages import Messages
 from .notifications import NotificationManager
@@ -45,6 +47,7 @@ class TelegramBot:
             mt5_bridge=mt5_bridge,
             risk_manager=risk_manager,
         )
+        self.backtester = Backtester(predictor=predictor)
 
         # Auto trading states
         self.auto_trading: Dict[int, bool] = {}
@@ -497,8 +500,35 @@ class TelegramBot:
                 await self._handle_timeframe_select(query, user_id, data)
             elif data == "ai_newsguard":
                 await self._toggle_newsguard(query, user_id)
-            elif data == "ai_backtest":
-                await self._toggle_backtest(query, user_id)
+            elif data == "menu_backtest":
+                await self._show_backtest_menu(query, user_id)
+            elif data == "backtest_pick_symbol":
+                await query.edit_message_text(
+                    "🏆 Select asset for backtest:",
+                    reply_markup=Keyboards.backtest_symbols(),
+                )
+            elif data == "backtest_pick_tf":
+                await query.edit_message_text(
+                    "⏱️ Select timeframe for backtest:",
+                    reply_markup=Keyboards.backtest_timeframes(),
+                )
+            elif data == "backtest_pick_strategy":
+                await query.edit_message_text(
+                    "🧮 Select strategy for backtest:",
+                    reply_markup=Keyboards.backtest_strategies(),
+                )
+            elif data.startswith("backtest_symbol_"):
+                await self._handle_backtest_symbol(query, user_id, data)
+            elif data.startswith("backtest_tf_"):
+                await self._handle_backtest_tf(query, user_id, data)
+            elif data.startswith("backtest_strategy_"):
+                await self._handle_backtest_strategy(query, user_id, data)
+            elif data == "backtest_run":
+                await self._run_backtest(query, user_id)
+            elif data == "backtest_history":
+                await self._show_backtest_history(query, user_id)
+            elif data.startswith("backtest_view_"):
+                await self._view_backtest(query, user_id, data)
             elif data == "ai_train":
                 await query.edit_message_text(
                     "🚧 This feature is under development...\nTraining ML model on historical data.",
@@ -638,13 +668,7 @@ class TelegramBot:
                     reply_markup=Keyboards.reports_menu(),
                 )
             elif data == "report_backtest":
-                await query.edit_message_text(
-                    "🧪 **Backtest Mode**\n\n"
-                    "This feature allows running the trading strategy on historical data\n"
-                    "to evaluate performance before risking real funds.\n\n"
-                    "🚧 Under development...",
-                    reply_markup=Keyboards.back_button("menu_reports"),
-                )
+                await self._show_backtest_history(query, user_id)
 
             # Risk Management
             elif data == "menu_risk":
@@ -676,21 +700,17 @@ class TelegramBot:
                     parse_mode="Markdown",
                 )
             elif data == "panic_confirm":
+                closed = 0
                 if self.risk:
                     closed = self.risk.activate_panic(user_id)
-                    if self.mt5:
-                        closed = self.mt5.close_all_positions()
-                    await query.edit_message_text(
-                        f"🚨 **Emergency order executed!**\n\n{closed} position(s) closed successfully.\n"
-                        "Panic mode active - trading stopped.",
-                        reply_markup=Keyboards.back_button(),
-                        parse_mode="Markdown",
-                    )
-                else:
-                    await query.edit_message_text(
-                        "❌ Risk manager not initialized",
-                        reply_markup=Keyboards.back_button(),
-                    )
+                elif self.mt5:
+                    closed = self.mt5.close_all_positions()
+                await query.edit_message_text(
+                    f"🚨 **Emergency order executed!**\n\n{closed} position(s) closed successfully.\n"
+                    "Panic mode active - trading stopped.",
+                    reply_markup=Keyboards.back_button(),
+                    parse_mode="Markdown",
+                )
 
             # Top 5 Forex
             elif data == "top5_forex":
@@ -1133,9 +1153,10 @@ class TelegramBot:
                         parse_mode="Markdown",
                     )
                     # Send urgent notification
-                    await self.notifications.send_message(
+                    await self.notifications.send_alert(
                         user_id,
-                        "🚨 **Trading Paused - API Quota Exceeded**\n\n"
+                        "warning",
+                        "Trading Paused - API Quota Exceeded\n\n"
                         f"Your AI provider quota has been reached. "
                         f"Please update your API key or billing.\n\n"
                         f"Go to 🤖 AI Settings → 🔑 AI Provider to update."
@@ -1274,11 +1295,185 @@ class TelegramBot:
         await query.answer(f"🛡️ NewsGuard: {'Enabled' if new_val else 'Disabled'}")
         await self._show_ai_config(query, user_id)
 
-    async def _toggle_backtest(self, query, user_id: int):
-        """Toggle backtest mode"""
+    # ─── Backtest Helpers ─────────────────────────
+
+    async def _show_backtest_menu(self, query, user_id: int):
+        """Show backtest configuration menu"""
         db = get_db()
-        ai_cfg = db.get_ai_config(user_id)
-        new_val = not ai_cfg.backtest_mode
-        db.update_ai_config(user_id, backtest_mode=new_val)
-        await query.answer(f"✅ Backtest mode: {'Enabled' if new_val else 'Disabled'}")
-        await self._show_ai_config(query, user_id)
+        symbol = db.get_setting(user_id, "backtest_symbol", "XAUUSD")
+        tf = db.get_setting(user_id, "backtest_timeframe", "D1")
+        strategy = db.get_setting(user_id, "backtest_strategy", "indicators")
+
+        text = Messages.backtest_config(symbol, tf, strategy)
+        await query.edit_message_text(
+            text=text,
+            reply_markup=Keyboards.backtest_menu(symbol, tf, strategy),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_backtest_symbol(self, query, user_id: int, data: str):
+        """Handle backtest symbol selection"""
+        symbol = data.replace("backtest_symbol_", "")
+        db = get_db()
+        db.set_setting(user_id, "backtest_symbol", symbol)
+        await query.answer(f"✅ Asset: {symbol}")
+        await self._show_backtest_menu(query, user_id)
+
+    async def _handle_backtest_tf(self, query, user_id: int, data: str):
+        """Handle backtest timeframe selection"""
+        tf = data.replace("backtest_tf_", "")
+        db = get_db()
+        db.set_setting(user_id, "backtest_timeframe", tf)
+        await query.answer(f"✅ Timeframe: {tf}")
+        await self._show_backtest_menu(query, user_id)
+
+    async def _handle_backtest_strategy(self, query, user_id: int, data: str):
+        """Handle backtest strategy selection"""
+        strategy = data.replace("backtest_strategy_", "")
+        db = get_db()
+        db.set_setting(user_id, "backtest_strategy", strategy)
+        await query.answer(f"✅ Strategy: {strategy.title()}")
+        await self._show_backtest_menu(query, user_id)
+
+    async def _run_backtest(self, query, user_id: int):
+        """Run the backtest and display results"""
+        import asyncio
+        from functools import partial
+
+        db = get_db()
+        symbol = db.get_setting(user_id, "backtest_symbol", "XAUUSD")
+        tf = db.get_setting(user_id, "backtest_timeframe", "D1")
+        strategy = db.get_setting(user_id, "backtest_strategy", "indicators")
+
+        # Validate symbol
+        if symbol not in config.symbols:
+            await query.answer("❌ Invalid symbol")
+            return
+
+        await query.edit_message_text(
+            Messages.backtest_running(symbol, tf, strategy),
+            parse_mode="Markdown",
+        )
+
+        try:
+            # Run CPU-intensive backtest in thread pool to avoid blocking Telegram bot
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None,
+                partial(
+                    self.backtester.run,
+                    symbol=symbol,
+                    timeframe=tf,
+                    strategy=strategy,
+                    start_days=365,
+                    initial_balance=10_000.0,
+                    volume=0.1,
+                    user_id=user_id,
+                ),
+            )
+
+            if not result.success:
+                await query.edit_message_text(
+                    f"❌ Backtest failed:\n\n{result.message}",
+                    reply_markup=Keyboards.back_button("menu_backtest"),
+                    parse_mode="Markdown",
+                )
+                return
+
+            # Save to database
+            db_data = Backtester.serialize_for_db(result)
+            db.save_backtest(user_id, db_data)
+
+            # Show result
+            report_text = BacktestReport.summary(result)
+            await query.edit_message_text(
+                text=report_text,
+                reply_markup=Keyboards.back_button("menu_backtest"),
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Backtest error: {e}")
+            await query.edit_message_text(
+                f"❌ Backtest error: {e}",
+                reply_markup=Keyboards.back_button("menu_backtest"),
+                parse_mode="Markdown",
+            )
+
+    async def _show_backtest_history(self, query, user_id: int):
+        """Show backtest history"""
+        db = get_db()
+        backtests = db.get_backtests(user_id, limit=10)
+
+        if not backtests:
+            text = BacktestReport.no_backtests()
+            await query.edit_message_text(
+                text=text,
+                reply_markup=Keyboards.back_button("menu_reports"),
+                parse_mode="Markdown",
+            )
+            return
+
+        text = BacktestReport.history_list(backtests)
+        await query.edit_message_text(
+            text=text,
+            reply_markup=Keyboards.backtest_history(backtests),
+            parse_mode="Markdown",
+        )
+
+    async def _view_backtest(self, query, user_id: int, data: str):
+        """View a specific backtest result"""
+        try:
+            backtest_id = int(data.replace("backtest_view_", ""))
+        except ValueError:
+            await query.edit_message_text(
+                "❌ Invalid backtest ID.",
+                reply_markup=Keyboards.back_button("backtest_history"),
+                parse_mode="Markdown",
+            )
+            return
+
+        db = get_db()
+        bt = db.get_backtest_by_id(backtest_id, user_id)
+
+        if not bt:
+            await query.edit_message_text(
+                "❌ Backtest not found.",
+                reply_markup=Keyboards.back_button("backtest_history"),
+                parse_mode="Markdown",
+            )
+            return
+
+        # Reconstruct minimal result for display
+        from trading.backtester import BacktestResult as BTR
+        result = BTR(
+            success=True,
+            symbol=bt.symbol,
+            timeframe=bt.timeframe,
+            strategy=bt.strategy,
+            start_date=bt.start_date,
+            end_date=bt.end_date,
+            initial_balance=bt.initial_balance,
+            final_balance=bt.final_balance,
+            total_trades=bt.total_trades,
+            winning_trades=bt.winning_trades,
+            losing_trades=bt.losing_trades,
+            win_rate=bt.win_rate,
+            profit_factor=bt.profit_factor,
+            total_return_pct=bt.total_return_pct,
+            max_drawdown_pct=bt.max_drawdown_pct,
+            sharpe_ratio=bt.sharpe_ratio,
+            sortino_ratio=bt.sortino_ratio,
+            avg_trade_return=bt.avg_trade_return,
+            avg_win=bt.avg_win,
+            avg_loss=bt.avg_loss,
+            largest_win=bt.largest_win,
+            largest_loss=bt.largest_loss,
+        )
+
+        report_text = BacktestReport.summary(result)
+        await query.edit_message_text(
+            text=report_text,
+            reply_markup=Keyboards.back_button("backtest_history"),
+            parse_mode="Markdown",
+        )

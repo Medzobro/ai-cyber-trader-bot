@@ -501,6 +501,36 @@ class Messages:
         """Loading message"""
         return "⏳ Processing... please wait"
 
+    # ─── Backtest ─────────────────────────────────
+
+    @staticmethod
+    def backtest_config(symbol: str = "XAUUSD", timeframe: str = "D1",
+                        strategy: str = "indicators") -> str:
+        """Backtest configuration screen"""
+        strategy_names = {
+            "indicators": "📊 Indicator Strategy (Fast / Free)",
+            "ai": "🧠 AI Strategy (Slow / Costs API Credits)",
+        }
+        return (
+            "🧪 **Backtest Configuration**\n\n"
+            "Test your trading strategy on historical data before risking real money.\n\n"
+            f"🏆 **Asset:** {symbol}\n"
+            f"⏱️ **Timeframe:** {timeframe}\n"
+            f"🧮 **Strategy:** {strategy_names.get(strategy, strategy)}\n\n"
+            "Tap the buttons below to adjust settings, then press **▶️ Run Backtest**"
+        )
+
+    @staticmethod
+    def backtest_running(symbol: str, timeframe: str, strategy: str) -> str:
+        """Message shown while backtest is running"""
+        return (
+            f"⏳ **Running Backtest...**\n\n"
+            f"🏆 Asset: {symbol}\n"
+            f"⏱️ Timeframe: {timeframe}\n"
+            f"🧮 Strategy: {strategy.title()}\n\n"
+            "Analyzing historical bars and simulating trades. Please wait..."
+        )
+
     @staticmethod
     def help_message() -> str:
         """Help message"""
