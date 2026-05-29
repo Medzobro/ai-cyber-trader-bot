@@ -451,9 +451,9 @@ class TelegramBot:
                 await self._show_dashboard(query, user_id)
 
             # Trading Setup
-            elif data.startswith("symbol_"):
+            elif data.startswith("symbol_") and data != "menu_indices":
                 await self._handle_symbol_select(query, user_id, data)
-            elif data.startswith("lot_"):
+            elif data.startswith("lot_") and data != "lot_custom":
                 await self._handle_lot_select(query, user_id, data)
             elif data == "lot_custom":
                 await query.edit_message_text(
@@ -463,7 +463,7 @@ class TelegramBot:
                 context.user_data["awaiting_lot"] = True
             elif data.startswith("dir_"):
                 await self._handle_direction_select(query, user_id, data)
-            elif data == "symbols_indices":
+            elif data == "menu_indices":
                 await query.edit_message_text(
                     "📊 Select Index:",
                     reply_markup=Keyboards.indices_symbols(),
@@ -490,7 +490,7 @@ class TelegramBot:
                     "🧠 Select analysis mode:",
                     reply_markup=Keyboards.analysis_modes(),
                 )
-            elif data.startswith("mode_"):
+            elif data.startswith("ai_mode_"):
                 await self._handle_mode_select(query, user_id, data)
             elif data == "ai_news":
                 await self._toggle_news(query, user_id)
@@ -627,6 +627,49 @@ class TelegramBot:
             # Trade Setup Menu
             elif data == "menu_trade":
                 await self._show_trade_settings(query, user_id)
+
+            # Lot & Direction menus
+            elif data == "menu_lot":
+                await query.edit_message_text(
+                    "📦 **Select Lot Size:**",
+                    reply_markup=Keyboards.lot_sizes(),
+                )
+            elif data == "direction_menu":
+                await query.edit_message_text(
+                    "📊 **Select Trade Direction:**",
+                    reply_markup=Keyboards.trade_direction(),
+                )
+
+            # MetaAPI Settings
+            elif data == "metaapi_settings":
+                await self._show_metaapi_settings(query, user_id)
+            elif data == "metaapi_set_token":
+                await query.edit_message_text(
+                    Messages.enter_metaapi_token(),
+                    reply_markup=Keyboards.back_button("metaapi_settings"),
+                )
+                context.user_data["awaiting_metaapi_token"] = True
+            elif data == "metaapi_set_account":
+                await query.edit_message_text(
+                    Messages.enter_metaapi_account(),
+                    reply_markup=Keyboards.back_button("metaapi_settings"),
+                )
+                context.user_data["awaiting_metaapi_account"] = True
+            elif data == "metaapi_set_region":
+                await query.edit_message_text(
+                    "🌍 **Select MetaAPI Region:**\n\n"
+                    "Choose the closest region to your broker for lowest latency.",
+                    reply_markup=Keyboards.metaapi_regions(),
+                )
+            elif data.startswith("metaapi_region_"):
+                region = data.replace("metaapi_region_", "")
+                db.set_setting(user_id, "metaapi_region", region)
+                await query.answer(f"✅ Region: {region}")
+                await self._show_metaapi_settings(query, user_id)
+            elif data == "metaapi_test":
+                await self._handle_metaapi_test(query, user_id)
+            elif data == "metaapi_clear":
+                await self._handle_metaapi_clear(query, user_id)
 
             # MT5 Settings
             elif data == "mt5_settings":
@@ -794,6 +837,16 @@ class TelegramBot:
         # If awaiting API key input
         if context.user_data.get("awaiting_api_key"):
             await self._handle_api_key_input(update, context, user_id, text)
+            return
+
+        # If awaiting MetaAPI token input
+        if context.user_data.get("awaiting_metaapi_token"):
+            await self._handle_metaapi_token_input(update, context, user_id, text)
+            return
+
+        # If awaiting MetaAPI account ID input
+        if context.user_data.get("awaiting_metaapi_account"):
+            await self._handle_metaapi_account_input(update, context, user_id, text)
             return
 
         # If awaiting MT5 login input
@@ -1101,12 +1154,10 @@ class TelegramBot:
                 await query.edit_message_text(
                     "🚨 **REAL TRADING NOT AVAILABLE**\n\n"
                     "You selected REAL MONEY mode, but the bot is running in SIMULATION.\n\n"
-                    "💡 This server (Linux VPS) cannot connect to MetaTrader 5 directly.\n"
-                    "To trade with real money, you need:\n"
-                    "1️⃣ A Windows server with MT5 running, OR\n"
-                    "2️⃣ Use MetaAPI.cloud for remote MT5 connection, OR\n"
-                    "3️⃣ Run the bot on your local Windows machine\n\n"
-                    "Switch to 🟡 SIMULATION mode to continue testing.",
+                    "💡 To trade with real money, configure one of:\n"
+                    "1️⃣ 🔧 MT5 Account (if on Windows with MT5 installed)\n"
+                    "2️⃣ 🔌 MetaAPI.cloud (best for Linux VPS — sign up at metaapi.cloud)\n\n"
+                    "Go to ⚙️ Trade Setup to configure your bridge.",
                     reply_markup=Keyboards.back_button("menu_trade"),
                     parse_mode="Markdown",
                 )
@@ -1336,7 +1387,7 @@ class TelegramBot:
 
     async def _handle_mode_select(self, query, user_id: int, data: str):
         """Handle analysis mode selection"""
-        mode = data.replace("mode_", "")
+        mode = data.replace("ai_mode_", "")
         db = get_db()
         db.update_ai_config(user_id, analysis_mode=mode)
 
@@ -1470,6 +1521,110 @@ class TelegramBot:
             reply_markup=Keyboards.back_button("mt5_settings"),
             parse_mode="Markdown",
         )
+
+    async def _handle_metaapi_token_input(self, update, context, user_id: int, text: str):
+        """Handle MetaAPI token input"""
+        db = get_db()
+        try:
+            db.store_metaapi_credentials(user_id, token=text.strip())
+            context.user_data["awaiting_metaapi_token"] = False
+            await update.message.reply_text(
+                "🔑 MetaAPI Token saved (AES-256 encrypted).\n\n"
+                "Now set your Account ID in 🔌 MetaAPI.cloud settings.",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+                parse_mode="Markdown",
+            )
+        except RuntimeError as e:
+            context.user_data["awaiting_metaapi_token"] = False
+            logger.error(f"Encryption error storing MetaAPI token: {e}")
+            await update.message.reply_text(
+                "❌ **Security Error**\n\n"
+                "ENCRYPTION_SECRET is not configured or is still the default placeholder.\n"
+                "Please set a strong secret in your `.env` file and restart the bot:\n\n"
+                "```\nENCRYPTION_SECRET=your-random-64-char-string-here\n```",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+                parse_mode="Markdown",
+            )
+
+    async def _handle_metaapi_account_input(self, update, context, user_id: int, text: str):
+        """Handle MetaAPI account ID input"""
+        db = get_db()
+        try:
+            db.store_metaapi_credentials(user_id, account_id=text.strip())
+            context.user_data["awaiting_metaapi_account"] = False
+            await update.message.reply_text(
+                f"🆔 MetaAPI Account ID set: `{text.strip()}`\n\n"
+                "Go to 🔌 MetaAPI.cloud to test the connection.",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+                parse_mode="Markdown",
+            )
+        except RuntimeError as e:
+            context.user_data["awaiting_metaapi_account"] = False
+            logger.error(f"Encryption error storing MetaAPI account: {e}")
+            await update.message.reply_text(
+                "❌ **Security Error**\n\n"
+                "ENCRYPTION_SECRET is not configured or is still the default placeholder.\n"
+                "Please set a strong secret in your `.env` file and restart the bot:\n\n"
+                "```\nENCRYPTION_SECRET=your-random-64-char-string-here\n```",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+                parse_mode="Markdown",
+            )
+
+    async def _show_metaapi_settings(self, query, user_id: int):
+        """Show MetaAPI.cloud settings"""
+        db = get_db()
+        metaapi_creds = db.get_metaapi_credentials(user_id)
+        trading_mode = db.get_setting(user_id, "trading_mode", "simulation")
+        has_creds = bool(metaapi_creds.get("token") and metaapi_creds.get("account_id"))
+        text = Messages.metaapi_settings(metaapi_creds, trading_mode)
+        await query.edit_message_text(
+            text,
+            reply_markup=Keyboards.metaapi_settings_menu(has_creds=has_creds),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_metaapi_test(self, query, user_id: int):
+        """Test MetaAPI connection"""
+        db = get_db()
+        creds = db.get_metaapi_credentials(user_id)
+
+        if not all([creds["token"], creds["account_id"]]):
+            await query.edit_message_text(
+                "❌ MetaAPI credentials incomplete. Please set token and account ID first.",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+            )
+            return
+
+        await query.edit_message_text(
+            "⏳ Testing MetaAPI.cloud connection...",
+            reply_markup=Keyboards.back_button("metaapi_settings"),
+        )
+
+        try:
+            from trading.metaapi_bridge import MetaAPIBridge
+            bridge = MetaAPIBridge(
+                token=creds["token"],
+                account_id=creds["account_id"],
+                region=creds.get("region", "default"),
+            )
+            success, msg = bridge._test_connection()
+            await query.edit_message_text(
+                msg,
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            await query.edit_message_text(
+                f"❌ MetaAPI test error: {e}",
+                reply_markup=Keyboards.back_button("metaapi_settings"),
+            )
+
+    async def _handle_metaapi_clear(self, query, user_id: int):
+        """Clear MetaAPI credentials"""
+        db = get_db()
+        db.store_metaapi_credentials(user_id, token="", account_id="", region="")
+        await query.answer("🗑️ MetaAPI credentials cleared")
+        await self._show_metaapi_settings(query, user_id)
 
     async def _show_trading_mode(self, query, user_id: int):
         """Show trading mode selection"""

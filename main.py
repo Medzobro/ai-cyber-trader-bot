@@ -21,6 +21,7 @@ from ai_engine.market_analyzer import MarketAnalyzer
 from ai_engine.predictor import AIPredictor
 from ai_engine.news_scraper import NewsScraper, get_news_scraper
 from trading.mt5_bridge import MT5Bridge, get_mt5
+from trading.metaapi_bridge import MetaAPIBridge, get_metaapi_bridge
 from trading.risk_manager import RiskManager, get_risk_manager
 from trading.trade_executor import TradeExecutor, get_executor
 from bot.handlers import TelegramBot
@@ -60,19 +61,38 @@ def setup_components():
     news_scraper = get_news_scraper()
     logger.info("News scraper ready")
 
-    # 4. MT5 Bridge
-    logger.info("Connecting to MT5...")
+    # 4. Trading Bridge (MT5 native → MetaAPI.cloud → Simulation)
+    logger.info("Connecting to trading bridge...")
     mt5 = get_mt5()
     connected = mt5.connect()
 
-    if connected:
+    if connected and not mt5.simulation:
         account = mt5.get_account_info()
         logger.info(
-            f"MT5 {'Connected' if not mt5.simulation else 'SIMULATION'}: "
-            f"Balance=${account.get('balance', 0):,.2f}"
+            f"✅ MT5 Native Connected | Balance=${account.get('balance', 0):,.2f}"
         )
     else:
-        logger.error("Failed to connect to MT5")
+        # MT5 native not available — try MetaAPI.cloud for Linux VPS
+        logger.info("MT5 native unavailable, trying MetaAPI.cloud...")
+        meta_cfg = config.metaapi
+        if meta_cfg.token and meta_cfg.account_id:
+            meta = get_metaapi_bridge(
+                token=meta_cfg.token,
+                account_id=meta_cfg.account_id,
+                region=meta_cfg.region,
+            )
+            meta_connected = meta.connect()
+            if meta_connected:
+                mt5 = meta  # Replace with MetaAPI bridge (same interface)
+                account = mt5.get_account_info()
+                logger.info(
+                    f"✅ MetaAPI.cloud Connected | Account={account.get('login')} | "
+                    f"Balance=${account.get('balance', 0):,.2f}"
+                )
+            else:
+                logger.warning("MetaAPI.cloud connection failed, falling back to simulation")
+        else:
+            logger.warning("MetaAPI.cloud not configured, running in SIMULATION mode")
 
     # 5. Risk Manager
     logger.info("Initializing risk manager...")

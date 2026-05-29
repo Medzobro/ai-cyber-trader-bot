@@ -529,6 +529,28 @@ class DatabaseManager:
             "server": server,
         }
 
+    def store_metaapi_credentials(self, user_id: int, token: str = None,
+                                    account_id: str = None, region: str = None):
+        """Store encrypted MetaAPI credentials as user settings"""
+        if token is not None:
+            encrypted = encrypt_api_key(token) if token else ""
+            self.set_setting(user_id, "metaapi_token_enc", encrypted)
+        if account_id is not None:
+            self.set_setting(user_id, "metaapi_account_id", account_id)
+        if region is not None:
+            self.set_setting(user_id, "metaapi_region", region)
+        logger.info(f"MetaAPI credentials updated for user {user_id}")
+
+    def get_metaapi_credentials(self, user_id: int) -> Dict[str, Optional[str]]:
+        """Get decrypted MetaAPI credentials for a user"""
+        token_enc = self.get_setting(user_id, "metaapi_token_enc")
+        token = decrypt_api_key(token_enc) if token_enc else None
+        return {
+            "token": token,
+            "account_id": self.get_setting(user_id, "metaapi_account_id"),
+            "region": self.get_setting(user_id, "metaapi_region", "default"),
+        }
+
     def get_user_readiness(self, user_id: int) -> Dict[str, Any]:
         """
         Check if user is ready for real trading.
@@ -565,23 +587,30 @@ class DatabaseManager:
         else:
             readiness["errors"].append("❌ No AI provider configured. Go to 🤖 AI Settings → 🔑 AI Provider.")
 
-        # 2. MT5 credentials check
+        # 2. MT5 / MetaAPI credentials check
         mt5_creds = self.get_mt5_credentials(user_id)
+        metaapi_creds = self.get_metaapi_credentials(user_id)
         trading_mode = self.get_setting(user_id, "trading_mode", "simulation")
         readiness["trading_mode"] = trading_mode
 
         if trading_mode in ("real", "demo"):
-            if mt5_creds["login"] and mt5_creds["password"] and mt5_creds["server"]:
+            mt5_ok = bool(mt5_creds["login"] and mt5_creds["password"] and mt5_creds["server"])
+            metaapi_ok = bool(metaapi_creds["token"] and metaapi_creds["account_id"])
+            if mt5_ok:
                 readiness["mt5_configured"] = True
                 readiness["mt5_login"] = mt5_creds["login"]
                 readiness["mt5_server"] = mt5_creds["server"]
+            elif metaapi_ok:
+                readiness["mt5_configured"] = True  # MetaAPI satisfies bridge requirement
+                readiness["metaapi_configured"] = True
+                readiness["metaapi_account_id"] = metaapi_creds["account_id"]
             else:
                 readiness["errors"].append(
-                    f"❌ MT5 account not configured for {trading_mode.upper()} mode. "
-                    "Go to ⚙️ Trade Setup → 🔧 MT5 Account."
+                    f"❌ No trading bridge configured for {trading_mode.upper()} mode.\n"
+                    "Go to ⚙️ Trade Setup → 🔧 MT5 Account (Windows) OR 🔌 MetaAPI.cloud (Linux VPS)."
                 )
         else:
-            # Simulation mode - MT5 not required
+            # Simulation mode - bridge not required
             readiness["mt5_configured"] = True  # Not needed
 
         # 3. Trading settings check

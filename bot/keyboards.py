@@ -70,6 +70,9 @@ class Keyboards:
         buttons = [
             [
                 InlineKeyboardButton("🔧 MT5 Account", callback_data="mt5_settings"),
+                InlineKeyboardButton("🔌 MetaAPI.cloud", callback_data="metaapi_settings"),
+            ],
+            [
                 InlineKeyboardButton("🎮 Trading Mode", callback_data="trading_mode"),
             ],
             [
@@ -84,7 +87,11 @@ class Keyboards:
                 InlineKeyboardButton("₿ BTCUSD", callback_data="symbol_BTCUSD"),
             ],
             [
-                InlineKeyboardButton("📊 Indices", callback_data="symbols_indices"),
+                InlineKeyboardButton("📦 Lot Size", callback_data="menu_lot"),
+                InlineKeyboardButton("📊 Trade Direction", callback_data="direction_menu"),
+            ],
+            [
+                InlineKeyboardButton("📊 Indices", callback_data="menu_indices"),
             ],
             [
                 InlineKeyboardButton("📋 Ready Check", callback_data="ready_check"),
@@ -266,13 +273,13 @@ class Keyboards:
         """Analysis mode selection"""
         buttons = [
             [
-                InlineKeyboardButton("🧠 Predictive Analysis", callback_data="mode_predictive"),
+                InlineKeyboardButton("🧠 Predictive Analysis", callback_data="ai_mode_predictive"),
             ],
             [
-                InlineKeyboardButton("📰 News Scanning", callback_data="mode_news_scanning"),
+                InlineKeyboardButton("📰 News Scanning", callback_data="ai_mode_news_scanning"),
             ],
             [
-                InlineKeyboardButton("🔀 Hybrid (Both)", callback_data="mode_hybrid"),
+                InlineKeyboardButton("🔀 Hybrid (Both)", callback_data="ai_mode_hybrid"),
             ],
             [
                 InlineKeyboardButton("⬅️ Back", callback_data="menu_ai"),
@@ -345,6 +352,46 @@ class Keyboards:
         return InlineKeyboardMarkup(buttons)
 
     # ─── MT5 & Trading Mode ───────────────────────
+
+    @staticmethod
+    def metaapi_settings_menu(has_creds: bool = False) -> InlineKeyboardMarkup:
+        """MetaAPI.cloud settings menu"""
+        buttons = [
+            [
+                InlineKeyboardButton("🔑 Set API Token", callback_data="metaapi_set_token"),
+            ],
+            [
+                InlineKeyboardButton("🆔 Set Account ID", callback_data="metaapi_set_account"),
+            ],
+            [
+                InlineKeyboardButton("🌍 Set Region", callback_data="metaapi_set_region"),
+            ],
+            [
+                InlineKeyboardButton("🔄 Test Connection", callback_data="metaapi_test"),
+            ],
+            [
+                InlineKeyboardButton("🗑️ Clear Credentials", callback_data="metaapi_clear"),
+            ] if has_creds else [],
+            [
+                InlineKeyboardButton("⬅️ Back to Setup", callback_data="menu_trade"),
+            ],
+        ]
+        buttons = [b for b in buttons if b]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def metaapi_regions() -> InlineKeyboardMarkup:
+        """MetaAPI region selection"""
+        regions = [
+            ("🗽 New York", "new-york"),
+            ("🇬🇧 London", "london"),
+            ("🇸🇬 Singapore", "singapore"),
+        ]
+        buttons = []
+        for label, val in regions:
+            buttons.append([InlineKeyboardButton(label, callback_data=f"metaapi_region_{val}")])
+        buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="metaapi_settings")])
+        return InlineKeyboardMarkup(buttons)
 
     @staticmethod
     def mt5_settings_menu(has_creds: bool = False) -> InlineKeyboardMarkup:

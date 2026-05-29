@@ -521,6 +521,50 @@ class Messages:
         )
 
     @staticmethod
+    def metaapi_settings(metaapi_creds: Dict[str, Any], trading_mode: str = "simulation") -> str:
+        """MetaAPI.cloud settings display"""
+        mode_names = {
+            "real": "🔴 REAL MONEY",
+            "demo": "🔵 DEMO / PRACTICE",
+            "simulation": "🟡 SIMULATION (No Broker)",
+        }
+        mode_name = mode_names.get(trading_mode, trading_mode.upper())
+        token_set = "✅ Set (Encrypted)" if metaapi_creds.get("token") else "❌ Not set"
+        account_id = metaapi_creds.get("account_id") or "Not set"
+        region = metaapi_creds.get("region") or "default"
+        return (
+            "🔌 **MetaAPI.cloud Settings**\n\n"
+            f"🎮 **Trading Mode:** {mode_name}\n"
+            f"🔑 **API Token:** {token_set}\n"
+            f"🆔 **Account ID:** {account_id}\n"
+            f"🌍 **Region:** {region}\n\n"
+            "MetaAPI.cloud allows real MT5 trading from Linux VPS.\n"
+            "1️⃣ Sign up at https://metaapi.cloud\n"
+            "2️⃣ Add your MT5 account in the dashboard\n"
+            "3️⃣ Copy API Token + Account ID here\n\n"
+            "Tap the buttons below to update."
+        )
+
+    @staticmethod
+    def enter_metaapi_token() -> str:
+        """MetaAPI token input prompt"""
+        return (
+            "🔑 **Enter your MetaAPI.cloud API Token:**\n\n"
+            "Get it from: https://app.metaapi.cloud/#/token\n\n"
+            "⚠️ Your token will be **AES-256 encrypted** before storage.\n\n"
+            "Type /cancel to abort."
+        )
+
+    @staticmethod
+    def enter_metaapi_account() -> str:
+        """MetaAPI account ID input prompt"""
+        return (
+            "🆔 **Enter your MetaAPI.cloud Account ID:**\n\n"
+            "Get it from your MetaAPI dashboard → Accounts\n\n"
+            "Type /cancel to abort."
+        )
+
+    @staticmethod
     def simulation_notice() -> str:
         """Notice about simulation mode on Linux"""
         return (

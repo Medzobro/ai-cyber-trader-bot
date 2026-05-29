@@ -66,6 +66,14 @@ class TradingConfig:
 
 
 @dataclass
+class MetaAPIConfig:
+    """MetaAPI.cloud settings for real MT5 trading on Linux VPS"""
+    token: str = os.getenv("METAAPI_TOKEN", "")
+    account_id: str = os.getenv("METAAPI_ACCOUNT_ID", "")
+    region: str = os.getenv("METAAPI_REGION", "default")  # new-york, london, singapore
+
+
+@dataclass
 class AIConfig:
     """AI settings - Multi-provider"""
     confidence_threshold: float = 70.0  # minimum confidence threshold (%)
@@ -113,6 +121,7 @@ class Config:
     ai: AIConfig = field(default_factory=AIConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     log: LogConfig = field(default_factory=LogConfig)
+    metaapi: MetaAPIConfig = field(default_factory=MetaAPIConfig)
 
     # Supported trading symbols
     symbols: Dict[str, str] = field(default_factory=lambda: {
