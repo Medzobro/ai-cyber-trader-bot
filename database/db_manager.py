@@ -15,7 +15,7 @@ from utils.logger import get_logger
 from utils.security import encrypt_api_key, decrypt_api_key, hash_key_for_audit, mask_key
 from database.models import (
     Base, User, Trade, Setting, AIConfigModel, DailyPerformance, UserAPIKey,
-    TradeStatus, TradeDirection
+    TradeStatus, TradeDirection, BacktestResult
 )
 
 logger = get_logger(__name__)
@@ -283,6 +283,58 @@ class DatabaseManager:
                 "losing_trades": total - wins,
                 "win_rate": (wins / total * 100) if total > 0 else 0,
             }
+
+    # ─── Backtest Results ─────────────────────────
+
+    def save_backtest(self, user_id: int, data: Dict[str, Any]) -> int:
+        """Save a backtest result and return its ID"""
+        with self.session() as sess:
+            bt = BacktestResult(
+                user_id=user_id,
+                symbol=data.get("symbol", ""),
+                timeframe=data.get("timeframe", ""),
+                strategy=data.get("strategy", "indicators"),
+                start_date=data.get("start_date"),
+                end_date=data.get("end_date"),
+                initial_balance=data.get("initial_balance", 10_000.0),
+                final_balance=data.get("final_balance", 10_000.0),
+                total_trades=data.get("total_trades", 0),
+                winning_trades=data.get("winning_trades", 0),
+                losing_trades=data.get("losing_trades", 0),
+                win_rate=data.get("win_rate", 0.0),
+                profit_factor=data.get("profit_factor", 0.0),
+                total_return_pct=data.get("total_return_pct", 0.0),
+                max_drawdown_pct=data.get("max_drawdown_pct", 0.0),
+                sharpe_ratio=data.get("sharpe_ratio", 0.0),
+                sortino_ratio=data.get("sortino_ratio", 0.0),
+                avg_trade_return=data.get("avg_trade_return", 0.0),
+                avg_win=data.get("avg_win", 0.0),
+                avg_loss=data.get("avg_loss", 0.0),
+                largest_win=data.get("largest_win", 0.0),
+                largest_loss=data.get("largest_loss", 0.0),
+                equity_curve=data.get("equity_curve"),
+                trades_json=data.get("trades_json"),
+            )
+            sess.add(bt)
+            sess.flush()
+            logger.info(f"Backtest #{bt.id} saved for user {user_id}")
+            return bt.id
+
+    def get_backtests(self, user_id: int, limit: int = 10) -> list:
+        """Get backtest history for a user"""
+        with self.session() as sess:
+            results = sess.query(BacktestResult).filter(
+                BacktestResult.user_id == user_id
+            ).order_by(BacktestResult.created_at.desc()).limit(limit).all()
+            return results
+
+    def get_backtest_by_id(self, backtest_id: int, user_id: int):
+        """Fetch a single backtest by ID (ensures user isolation)"""
+        with self.session() as sess:
+            return sess.query(BacktestResult).filter(
+                BacktestResult.id == backtest_id,
+                BacktestResult.user_id == user_id,
+            ).first()
 
     # ─── API Key Management (Encrypted) ────────────
 

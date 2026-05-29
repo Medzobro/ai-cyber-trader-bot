@@ -161,7 +161,7 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton(news_guard_label, callback_data="ai_newsguard"),
-                InlineKeyboardButton("🧪 Backtest Mode", callback_data="ai_backtest"),
+                InlineKeyboardButton("🧪 Backtest", callback_data="menu_backtest"),
             ],
             [
                 InlineKeyboardButton("📊 Train ML Model", callback_data="ai_train"),
@@ -365,4 +365,120 @@ class Keyboards:
                 InlineKeyboardButton("❌ No", callback_data=no_callback),
             ],
         ]
+        return InlineKeyboardMarkup(buttons)
+
+    # ─── Backtest ─────────────────────────────────
+
+    @staticmethod
+    def backtest_menu(symbol: str = "XAUUSD", timeframe: str = "D1",
+                      strategy: str = "indicators") -> InlineKeyboardMarkup:
+        """Backtest configuration menu"""
+        sym_emoji = {
+            "XAUUSD": "🏆", "EURUSD": "💶", "GBPUSD": "💷",
+            "USDJPY": "💴", "BTCUSD": "₿", "US30": "📊", "NAS100": "📈",
+        }
+        tf_labels = {"M5": "M5", "M15": "M15", "M30": "M30",
+                     "H1": "H1", "H4": "H4", "D1": "D1"}
+        strat_labels = {"indicators": "📊 Indicators", "ai": "🧠 AI"}
+
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    f"🏆 Asset: {sym_emoji.get(symbol, '')} {symbol}",
+                    callback_data="backtest_pick_symbol"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    f"⏱️ Timeframe: {tf_labels.get(timeframe, timeframe)}",
+                    callback_data="backtest_pick_tf"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    f"🧮 Strategy: {strat_labels.get(strategy, strategy)}",
+                    callback_data="backtest_pick_strategy"
+                ),
+            ],
+            [
+                InlineKeyboardButton("▶️ Run Backtest", callback_data="backtest_run"),
+            ],
+            [
+                InlineKeyboardButton("📜 Backtest History", callback_data="backtest_history"),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back", callback_data="menu_ai"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def backtest_symbols() -> InlineKeyboardMarkup:
+        """Symbol picker for backtest"""
+        symbols = [
+            ("🏆 Gold", "XAUUSD"), ("💶 EUR/USD", "EURUSD"),
+            ("💷 GBP/USD", "GBPUSD"), ("💴 USD/JPY", "USDJPY"),
+            ("₿ Bitcoin", "BTCUSD"), ("📊 US30", "US30"),
+            ("📈 NAS100", "NAS100"),
+        ]
+        buttons = []
+        for label, sym in symbols:
+            buttons.append([
+                InlineKeyboardButton(label, callback_data=f"backtest_symbol_{sym}")
+            ])
+        buttons.append([
+            InlineKeyboardButton("⬅️ Back", callback_data="menu_backtest"),
+        ])
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def backtest_timeframes() -> InlineKeyboardMarkup:
+        """Timeframe picker for backtest"""
+        tfs = ["M5", "M15", "M30", "H1", "H4", "D1"]
+        buttons = []
+        row = []
+        for tf in tfs:
+            row.append(InlineKeyboardButton(tf, callback_data=f"backtest_tf_{tf}"))
+            if len(row) == 3:
+                buttons.append(row)
+                row = []
+        if row:
+            buttons.append(row)
+        buttons.append([
+            InlineKeyboardButton("⬅️ Back", callback_data="menu_backtest"),
+        ])
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def backtest_strategies() -> InlineKeyboardMarkup:
+        """Strategy picker for backtest"""
+        buttons = [
+            [
+                InlineKeyboardButton("📊 Indicator Strategy (Fast / Free)", callback_data="backtest_strategy_indicators"),
+            ],
+            [
+                InlineKeyboardButton("🧠 AI Strategy (Slow / Costs Credits)", callback_data="backtest_strategy_ai"),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back", callback_data="menu_backtest"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def backtest_history(backtests: list) -> InlineKeyboardMarkup:
+        """History list with view buttons"""
+        buttons = []
+        for bt in backtests[:5]:
+            pnl_emoji = "🟢" if bt.total_return_pct >= 0 else "🔴"
+            label = f"{pnl_emoji} #{bt.id} | {bt.symbol}/{bt.timeframe} | {bt.total_return_pct:+.1f}%"
+            buttons.append([
+                InlineKeyboardButton(label, callback_data=f"backtest_view_{bt.id}")
+            ])
+        buttons.append([
+            InlineKeyboardButton("🔄 Run New Backtest", callback_data="menu_backtest"),
+        ])
+        buttons.append([
+            InlineKeyboardButton("⬅️ Back to Reports", callback_data="menu_reports"),
+        ])
         return InlineKeyboardMarkup(buttons)
