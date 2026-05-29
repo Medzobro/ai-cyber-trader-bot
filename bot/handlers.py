@@ -55,8 +55,9 @@ class TelegramBot:
         self.app: Optional[Application] = None
         self.db = get_db()
 
-        # Background scheduler for NewsGuard
+        # Background scheduler for NewsGuard + Auto-Trading
         self._scheduler = None
+        self._auto_trading_interval = 5  # minutes between auto-trade cycles
 
     async def start(self):
         """Start the bot"""
@@ -75,6 +76,9 @@ class TelegramBot:
         # Start NewsGuard periodic protection scan
         self._start_news_guard_scheduler()
 
+        # Start auto-trading scheduler
+        self._start_auto_trading_scheduler()
+
         logger.info("Telegram bot started. Waiting for commands...")
         await self.app.run_polling(allowed_updates=Update.ALL_TYPES)
 
@@ -82,7 +86,7 @@ class TelegramBot:
         """Stop the bot"""
         if self._scheduler:
             self._scheduler.shutdown(wait=False)
-            logger.info("NewsGuard scheduler stopped")
+            logger.info("Schedulers stopped")
         if self.app:
             await self.app.stop()
             await self.app.shutdown()
@@ -91,7 +95,8 @@ class TelegramBot:
     def _start_news_guard_scheduler(self):
         """Start the periodic NewsGuard protection scan"""
         try:
-            self._scheduler = AsyncIOScheduler()
+            if not self._scheduler:
+                self._scheduler = AsyncIOScheduler()
             self._scheduler.add_job(
                 self._periodic_news_check,
                 "interval",
@@ -99,13 +104,81 @@ class TelegramBot:
                 id="news_guard_scan",
                 replace_existing=True,
             )
-            self._scheduler.start()
             logger.info(
-                f"🛡️ NewsGuard scheduler started | "
+                f"🛡️ NewsGuard scheduler registered | "
                 f"Interval: {NewsGuard.CHECK_INTERVAL_MINUTES}min"
             )
         except Exception as e:
-            logger.error(f"Failed to start NewsGuard scheduler: {e}")
+            logger.error(f"Failed to register NewsGuard scheduler: {e}")
+
+    def _start_auto_trading_scheduler(self):
+        """Start the periodic auto-trading cycle scheduler"""
+        try:
+            if not self._scheduler:
+                self._scheduler = AsyncIOScheduler()
+            self._scheduler.add_job(
+                self._periodic_auto_trade,
+                "interval",
+                minutes=self._auto_trading_interval,
+                id="auto_trade_scan",
+                replace_existing=True,
+            )
+            if not self._scheduler.running:
+                self._scheduler.start()
+            logger.info(
+                f"🤖 Auto-trading scheduler started | "
+                f"Interval: {self._auto_trading_interval}min"
+            )
+        except Exception as e:
+            logger.error(f"Failed to start auto-trading scheduler: {e}")
+
+    async def _periodic_auto_trade(self):
+        """Periodic background job: run auto-trading for all active users"""
+        try:
+            active_users = [uid for uid, active in self.auto_trading.items() if active]
+            if not active_users:
+                return
+
+            logger.info(f"🤖 Auto-trade scan: {len(active_users)} active users")
+            for user_id in active_users:
+                try:
+                    if not self.auto_trading.get(user_id):
+                        continue
+                    if self.risk and self.risk.trading_paused.get(user_id):
+                        continue
+
+                    db = get_db()
+                    symbol = db.get_setting(user_id, "symbol", config.trading.default_symbol)
+                    tf = db.get_setting(user_id, "timeframe", config.ai.prediction_timeframe)
+
+                    # Analyze market
+                    result = self.analyzer.analyze(symbol, tf, user_id=user_id)
+                    if result.get("error") or result.get("should_stop"):
+                        if result.get("should_stop"):
+                            self.auto_trading[user_id] = False
+                            await self.notifications.send_alert(
+                                user_id, "warning",
+                                f"🚨 Auto-trading paused: {result.get('reasoning', 'API quota exceeded')}"
+                            )
+                        continue
+
+                    confidence = result.get("confidence", 0)
+                    ai_cfg = db.get_ai_config(user_id)
+                    if confidence < ai_cfg.confidence_threshold:
+                        continue
+
+                    # Execute trade using pre-computed analysis (no double-analysis)
+                    trade_result = self.executor.execute_from_analysis(
+                        user_id, symbol, tf, result
+                    )
+                    if trade_result.get("trade_executed"):
+                        await self.notifications.send_trade_opened(
+                            user_id, trade_result["trade"]
+                        )
+                except Exception as e:
+                    logger.error(f"Auto-trade error for user {user_id}: {e}")
+        except Exception as e:
+            logger.error(f"Auto-trade periodic error: {e}")
 
     async def _periodic_news_check(self):
         """Periodic background job: scan all users for imminent news"""
@@ -855,6 +928,12 @@ class TelegramBot:
     async def _handle_symbol_select(self, query, user_id: int, data: str):
         """Handle symbol selection"""
         symbol = data.replace("symbol_", "")
+
+        # Validate symbol against whitelist
+        if symbol not in config.symbols:
+            await query.answer("❌ Invalid symbol selected")
+            return
+
         db = get_db()
         db.set_setting(user_id, "symbol", symbol)
 
@@ -911,8 +990,15 @@ class TelegramBot:
 
         await query.answer("✅ Auto trading started")
 
-        # Execute first analysis immediately
-        await self._handle_analyze_now(query, user_id, auto_mode=True)
+        # Run first cycle immediately using background scheduler logic
+        # (avoids blocking the UI with a full analysis cycle here)
+        await query.edit_message_text(
+            "🚀 Auto trading is now active!\n\n"
+            "The bot will analyze and trade automatically every 5 minutes.\n"
+            "You can pause anytime with the 🛑 Pause button.",
+            reply_markup=Keyboards.main_dashboard(),
+            parse_mode="Markdown",
+        )
 
     async def _handle_auto_stop(self, query, user_id: int):
         """Stop auto trading"""
@@ -986,8 +1072,9 @@ class TelegramBot:
                 ai_cfg = db.get_ai_config(user_id)
 
                 if confidence >= ai_cfg.confidence_threshold:
-                    trade_result = self.executor.execute_analysis_cycle(
-                        user_id, symbol, tf
+                    # Use execute_from_analysis to avoid double-analysis
+                    trade_result = self.executor.execute_from_analysis(
+                        user_id, symbol, tf, result
                     )
                     if trade_result.get("trade_executed"):
                         analysis_text += "\n\n───\n" + trade_result["message"]
