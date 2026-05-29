@@ -646,21 +646,17 @@ class TelegramBot:
                     parse_mode="Markdown",
                 )
             elif data == "panic_confirm":
+                closed = 0
                 if self.risk:
                     closed = self.risk.activate_panic(user_id)
-                    if self.mt5:
-                        closed = self.mt5.close_all_positions()
-                    await query.edit_message_text(
-                        f"🚨 **Emergency order executed!**\n\n{closed} position(s) closed successfully.\n"
-                        "Panic mode active - trading stopped.",
-                        reply_markup=Keyboards.back_button(),
-                        parse_mode="Markdown",
-                    )
-                else:
-                    await query.edit_message_text(
-                        "❌ Risk manager not initialized",
-                        reply_markup=Keyboards.back_button(),
-                    )
+                elif self.mt5:
+                    closed = self.mt5.close_all_positions()
+                await query.edit_message_text(
+                    f"🚨 **Emergency order executed!**\n\n{closed} position(s) closed successfully.\n"
+                    "Panic mode active - trading stopped.",
+                    reply_markup=Keyboards.back_button(),
+                    parse_mode="Markdown",
+                )
 
             # Analyze Now
             elif data == "analyze_now":
@@ -1070,9 +1066,10 @@ class TelegramBot:
                         parse_mode="Markdown",
                     )
                     # Send urgent notification
-                    await self.notifications.send_message(
+                    await self.notifications.send_alert(
                         user_id,
-                        "🚨 **Trading Paused - API Quota Exceeded**\n\n"
+                        "warning",
+                        "Trading Paused - API Quota Exceeded\n\n"
                         f"Your AI provider quota has been reached. "
                         f"Please update your API key or billing.\n\n"
                         f"Go to 🤖 AI Settings → 🔑 AI Provider to update."
