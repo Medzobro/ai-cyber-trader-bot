@@ -78,11 +78,8 @@ class AIConfig:
     # Multi-provider defaults (users can override with their own keys)
     default_provider: str = "deepseek"  # openai, gemini, claude, deepseek
     
-    # Encryption
-    encryption_secret: str = os.getenv(
-        "ENCRYPTION_SECRET",
-        "ai-cyber-trader-default-secret-change-in-production"
-    )
+    # Encryption - MUST be set via .env in production
+    encryption_secret: str = os.getenv("ENCRYPTION_SECRET", "")
     
     indicators: List[str] = field(default_factory=lambda: [
         "RSI", "MACD", "EMA", "Bollinger", "ATR", "ADX", "Stochastic"

@@ -108,6 +108,37 @@ class Messages:
             f"Allowed range: {config.trading.min_lot} - {config.trading.max_lot}"
         )
 
+    @staticmethod
+    def enter_mt5_login() -> str:
+        """MT5 login input prompt"""
+        return (
+            "🔢 **Enter your MT5 Account Login (Login ID):**\n\n"
+            "Example: `12345678`\n\n"
+            "Type /cancel to abort."
+        )
+
+    @staticmethod
+    def enter_mt5_password() -> str:
+        """MT5 password input prompt"""
+        return (
+            "🔑 **Enter your MT5 Account Password:**\n\n"
+            "⚠️ Your password will be **AES-256 encrypted** before storage.\n\n"
+            "Type /cancel to abort."
+        )
+
+    @staticmethod
+    def enter_mt5_server() -> str:
+        """MT5 server input prompt"""
+        return (
+            "🌐 **Enter your MT5 Broker Server:**\n\n"
+            "Examples:\n"
+            "• `ICMarkets-Demo` (Demo)\n"
+            "• `ICMarkets-Live` (Real)\n"
+            "• `Exness-MT5Trial` (Demo)\n"
+            "• `Exness-MT5Real` (Real)\n\n"
+            "Type /cancel to abort."
+        )
+
     # ─── AI Settings ──────────────────────────────
 
     @staticmethod
@@ -400,6 +431,110 @@ class Messages:
             f"🚨 **Panic Mode:** {panic}\n"
             f"⏯️ **Trading Status:** {paused}\n\n"
             f"⚠️ Max Daily Loss Limit: {status.get('max_daily_loss', 5)}%"
+        )
+
+    @staticmethod
+    def mt5_settings(mt5_creds: Dict[str, Any], trading_mode: str = "simulation") -> str:
+        """MT5 account settings display"""
+        mode_names = {
+            "real": "🔴 REAL MONEY",
+            "demo": "🔵 DEMO / PRACTICE",
+            "simulation": "🟡 SIMULATION (No MT5)",
+        }
+        mode_name = mode_names.get(trading_mode, trading_mode.upper())
+
+        login = mt5_creds.get("login") or "Not set"
+        server = mt5_creds.get("server") or "Not set"
+        password_set = "✅ Set (Encrypted)" if mt5_creds.get("password") else "❌ Not set"
+
+        return (
+            "🔧 **MT5 Account Settings**\n\n"
+            f"🎮 **Trading Mode:** {mode_name}\n"
+            f"🔢 **Login:** {login}\n"
+            f"🔑 **Password:** {password_set}\n"
+            f"🌐 **Server:** {server}\n\n"
+            "Tap the buttons below to update your settings."
+        )
+
+    @staticmethod
+    def setup_checklist(readiness: Dict[str, Any]) -> str:
+        """Pre-flight readiness checklist"""
+        ai_ok = "✅" if readiness.get("ai_provider") else "❌"
+        mt5_ok = "✅" if readiness.get("mt5_configured") else "❌"
+        symbol_ok = "✅" if readiness.get("symbol_selected") else "⚠️"
+        lot_ok = "✅" if readiness.get("lot_set") else "⚠️"
+
+        mode = readiness.get("trading_mode", "simulation")
+        mode_display = {
+            "real": "🔴 REAL MONEY",
+            "demo": "🔵 DEMO",
+            "simulation": "🟡 SIMULATION",
+        }.get(mode, mode.upper())
+
+        lines = [
+            "📋 **Trading Readiness Checklist**\n",
+            f"🎮 **Mode:** {mode_display}\n",
+            f"{ai_ok} **AI Provider:** {readiness.get('ai_provider_name') or 'Not configured'}",
+            f"{mt5_ok} **MT5 Account:** {readiness.get('mt5_server') or 'Not configured'}" if mode in ("real", "demo") else f"{mt5_ok} **MT5 Account:** Not required in Simulation",
+            f"{symbol_ok} **Symbol:** {readiness.get('symbol') or 'Default'}",
+            f"{lot_ok} **Lot Size:** {readiness.get('lot') or 'Default'}",
+            "",
+        ]
+
+        if readiness.get("errors"):
+            lines.append("🚫 **BLOCKING ISSUES:**")
+            for err in readiness["errors"]:
+                lines.append(err)
+            lines.append("")
+
+        if readiness.get("warnings"):
+            lines.append("⚠️ **Warnings:**")
+            for warn in readiness["warnings"]:
+                lines.append(warn)
+            lines.append("")
+
+        if readiness.get("can_trade"):
+            lines.append("✅ **You are ready to trade!** Press 🚀 Start Auto Trading.")
+        else:
+            lines.append("❌ **NOT READY.** Fix the blocking issues above first.")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def real_trading_warning() -> str:
+        """Big warning before enabling real trading"""
+        return (
+            "🚨 **WARNING: REAL MONEY TRADING** 🚨\n\n"
+            "You are about to switch to **REAL MONEY** mode.\n\n"
+            "⚠️ **Risks:**\n"
+            "• Real financial losses are possible\n"
+            "• AI is NOT 100% accurate\n"
+            "• Past performance does not guarantee future results\n"
+            "• Always use Stop Loss (enforced by the bot)\n\n"
+            "✅ **Requirements before starting:**\n"
+            "1. MT5 terminal must be running with your broker\n"
+            "2. Valid MT5 login, password, and server configured\n"
+            "3. AI provider configured with a valid API key\n"
+            "4. Risk settings reviewed\n\n"
+            "💡 **Recommendation:** Test in DEMO mode first!\n\n"
+            "Are you sure you want to enable REAL trading?"
+        )
+
+    @staticmethod
+    def simulation_notice() -> str:
+        """Notice about simulation mode on Linux"""
+        return (
+            "🟡 **Running in SIMULATION MODE**\n\n"
+            "The bot is currently using simulated prices and fake trades.\n\n"
+            "To trade with REAL money or DEMO accounts, you need:\n"
+            "1️⃣ A Windows server OR Wine on Linux with MT5 installed\n"
+            "2️⃣ Your MT5 login, password, and server configured\n"
+            "3️⃣ Select Real or Demo mode in Trade Setup\n\n"
+            "💡 **Current behavior:**\n"
+            "• Prices are simulated\n"
+            "• Trades are not sent to any broker\n"
+            "• P&L is estimated for learning purposes\n\n"
+            "Go to ⚙️ Trade Setup → 🔧 MT5 Account to configure."
         )
 
     # ─── Analysis Result ──────────────────────────

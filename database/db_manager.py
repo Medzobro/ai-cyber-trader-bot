@@ -502,6 +502,107 @@ class DatabaseManager:
             ).first()
             return record.provider if record else None
 
+    # ─── MT5 Credential Management (Encrypted) ───────
+
+    def store_mt5_credentials(self, user_id: int, login: str = None,
+                              password: str = None, server: str = None):
+        """Store encrypted MT5 credentials as user settings"""
+        if login is not None:
+            self.set_setting(user_id, "mt5_login", str(login))
+        if password is not None:
+            # Encrypt the password before storage
+            encrypted = encrypt_api_key(password)
+            self.set_setting(user_id, "mt5_password_enc", encrypted)
+        if server is not None:
+            self.set_setting(user_id, "mt5_server", server)
+        logger.info(f"MT5 credentials updated for user {user_id}")
+
+    def get_mt5_credentials(self, user_id: int) -> Dict[str, Optional[str]]:
+        """Get decrypted MT5 credentials for a user"""
+        login = self.get_setting(user_id, "mt5_login")
+        server = self.get_setting(user_id, "mt5_server")
+        password_enc = self.get_setting(user_id, "mt5_password_enc")
+        password = decrypt_api_key(password_enc) if password_enc else None
+        return {
+            "login": login,
+            "password": password,
+            "server": server,
+        }
+
+    def get_user_readiness(self, user_id: int) -> Dict[str, Any]:
+        """
+        Check if user is ready for real trading.
+        Returns a checklist of required and optional configurations.
+        """
+        readiness = {
+            "ai_provider": False,
+            "ai_provider_name": None,
+            "ai_model": None,
+            "mt5_configured": False,
+            "mt5_login": None,
+            "mt5_server": None,
+            "trading_mode": None,
+            "symbol_selected": False,
+            "symbol": None,
+            "lot_set": False,
+            "lot": None,
+            "can_trade": False,
+            "warnings": [],
+            "errors": [],
+        }
+
+        # 1. AI Provider check
+        provider = self.get_user_provider(user_id)
+        if provider:
+            readiness["ai_provider"] = True
+            readiness["ai_provider_name"] = provider
+            # Get model
+            keys = self.get_user_api_keys(user_id)
+            for k in keys:
+                if k["provider"] == provider:
+                    readiness["ai_model"] = k.get("model") or "default"
+                    break
+        else:
+            readiness["errors"].append("❌ No AI provider configured. Go to 🤖 AI Settings → 🔑 AI Provider.")
+
+        # 2. MT5 credentials check
+        mt5_creds = self.get_mt5_credentials(user_id)
+        trading_mode = self.get_setting(user_id, "trading_mode", "simulation")
+        readiness["trading_mode"] = trading_mode
+
+        if trading_mode in ("real", "demo"):
+            if mt5_creds["login"] and mt5_creds["password"] and mt5_creds["server"]:
+                readiness["mt5_configured"] = True
+                readiness["mt5_login"] = mt5_creds["login"]
+                readiness["mt5_server"] = mt5_creds["server"]
+            else:
+                readiness["errors"].append(
+                    f"❌ MT5 account not configured for {trading_mode.upper()} mode. "
+                    "Go to ⚙️ Trade Setup → 🔧 MT5 Account."
+                )
+        else:
+            # Simulation mode - MT5 not required
+            readiness["mt5_configured"] = True  # Not needed
+
+        # 3. Trading settings check
+        symbol = self.get_setting(user_id, "symbol", config.trading.default_symbol)
+        lot = self.get_setting(user_id, "lot", str(config.trading.default_lot))
+        readiness["symbol_selected"] = bool(symbol)
+        readiness["symbol"] = symbol
+        readiness["lot_set"] = bool(lot)
+        readiness["lot"] = lot
+
+        if not readiness["symbol_selected"]:
+            readiness["warnings"].append("⚠️ No trading symbol selected. Default will be used.")
+
+        # 4. Overall readiness
+        has_errors = len(readiness["errors"]) > 0
+        readiness["can_trade"] = readiness["ai_provider"] and not has_errors
+        if trading_mode in ("real", "demo") and not readiness["mt5_configured"]:
+            readiness["can_trade"] = False
+
+        return readiness
+
 
 # Singleton
 _db_instance: Optional[DatabaseManager] = None

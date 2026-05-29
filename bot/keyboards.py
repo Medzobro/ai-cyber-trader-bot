@@ -69,6 +69,10 @@ class Keyboards:
         """Trading setup menu"""
         buttons = [
             [
+                InlineKeyboardButton("🔧 MT5 Account", callback_data="mt5_settings"),
+                InlineKeyboardButton("🎮 Trading Mode", callback_data="trading_mode"),
+            ],
+            [
                 InlineKeyboardButton("🏆 XAUUSD", callback_data="symbol_XAUUSD"),
                 InlineKeyboardButton("💶 EURUSD", callback_data="symbol_EURUSD"),
             ],
@@ -81,6 +85,9 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton("📊 Indices", callback_data="symbols_indices"),
+            ],
+            [
+                InlineKeyboardButton("📋 Ready Check", callback_data="ready_check"),
             ],
             [
                 InlineKeyboardButton("⬅️ Back", callback_data="main_menu"),
@@ -333,6 +340,74 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton("⬅️ Back to Main Menu", callback_data="main_menu"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    # ─── MT5 & Trading Mode ───────────────────────
+
+    @staticmethod
+    def mt5_settings_menu(has_creds: bool = False) -> InlineKeyboardMarkup:
+        """MT5 account settings menu"""
+        buttons = [
+            [
+                InlineKeyboardButton("🔢 Set Login ID", callback_data="mt5_set_login"),
+            ],
+            [
+                InlineKeyboardButton("🔑 Set Password", callback_data="mt5_set_password"),
+            ],
+            [
+                InlineKeyboardButton("🌐 Set Server", callback_data="mt5_set_server"),
+            ],
+            [
+                InlineKeyboardButton("🔄 Test Connection", callback_data="mt5_test_connection"),
+            ],
+            [
+                InlineKeyboardButton("🗑️ Clear Credentials", callback_data="mt5_clear_creds"),
+            ] if has_creds else [],
+            [
+                InlineKeyboardButton("⬅️ Back to Setup", callback_data="menu_trade"),
+            ],
+        ]
+        # Remove empty rows
+        buttons = [b for b in buttons if b]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def trading_mode_select(current_mode: str = "simulation") -> InlineKeyboardMarkup:
+        """Trading mode selection"""
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    f"{'✅ ' if current_mode == 'real' else ''}🔴 REAL MONEY",
+                    callback_data="mode_real"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    f"{'✅ ' if current_mode == 'demo' else ''}🔵 DEMO / PRACTICE",
+                    callback_data="mode_demo"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    f"{'✅ ' if current_mode == 'simulation' else ''}🟡 SIMULATION",
+                    callback_data="mode_simulation"
+                ),
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back to Setup", callback_data="menu_trade"),
+            ],
+        ]
+        return InlineKeyboardMarkup(buttons)
+
+    @staticmethod
+    def confirm_real_trading() -> InlineKeyboardMarkup:
+        """Confirm enabling real trading"""
+        buttons = [
+            [
+                InlineKeyboardButton("✅ Yes, Enable REAL Trading", callback_data="confirm_real_yes"),
+                InlineKeyboardButton("❌ Cancel", callback_data="menu_trade"),
             ],
         ]
         return InlineKeyboardMarkup(buttons)

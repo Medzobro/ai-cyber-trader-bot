@@ -628,6 +628,44 @@ class TelegramBot:
             elif data == "menu_trade":
                 await self._show_trade_settings(query, user_id)
 
+            # MT5 Settings
+            elif data == "mt5_settings":
+                await self._show_mt5_settings(query, user_id)
+            elif data == "mt5_set_login":
+                await query.edit_message_text(
+                    Messages.enter_mt5_login(),
+                    reply_markup=Keyboards.back_button("mt5_settings"),
+                )
+                context.user_data["awaiting_mt5_login"] = True
+            elif data == "mt5_set_password":
+                await query.edit_message_text(
+                    Messages.enter_mt5_password(),
+                    reply_markup=Keyboards.back_button("mt5_settings"),
+                )
+                context.user_data["awaiting_mt5_password"] = True
+            elif data == "mt5_set_server":
+                await query.edit_message_text(
+                    Messages.enter_mt5_server(),
+                    reply_markup=Keyboards.back_button("mt5_settings"),
+                )
+                context.user_data["awaiting_mt5_server"] = True
+            elif data == "mt5_test_connection":
+                await self._handle_mt5_test(query, user_id)
+            elif data == "mt5_clear_creds":
+                await self._handle_mt5_clear(query, user_id)
+
+            # Trading Mode
+            elif data == "trading_mode":
+                await self._show_trading_mode(query, user_id)
+            elif data.startswith("mode_"):
+                await self._handle_trading_mode_select(query, user_id, data, context)
+            elif data == "confirm_real_yes":
+                await self._handle_confirm_real(query, user_id)
+
+            # Ready Check
+            elif data == "ready_check":
+                await self._handle_ready_check(query, user_id)
+
             # Reports
             elif data == "menu_reports":
                 await self._show_reports(query, user_id)
@@ -756,6 +794,21 @@ class TelegramBot:
         # If awaiting API key input
         if context.user_data.get("awaiting_api_key"):
             await self._handle_api_key_input(update, context, user_id, text)
+            return
+
+        # If awaiting MT5 login input
+        if context.user_data.get("awaiting_mt5_login"):
+            await self._handle_mt5_login_input(update, context, user_id, text)
+            return
+
+        # If awaiting MT5 password input
+        if context.user_data.get("awaiting_mt5_password"):
+            await self._handle_mt5_password_input(update, context, user_id, text)
+            return
+
+        # If awaiting MT5 server input
+        if context.user_data.get("awaiting_mt5_server"):
+            await self._handle_mt5_server_input(update, context, user_id, text)
             return
 
         # Default response
@@ -1025,22 +1078,39 @@ class TelegramBot:
         await self._show_trade_settings(query, user_id)
 
     async def _handle_auto_start(self, query, user_id: int):
-        """Start auto trading"""
-        # Check if any API key is configured
+        """Start auto trading with mandatory pre-flight validation"""
         db = get_db()
-        provider = db.get_user_provider(user_id)
 
-        if not provider:
+        # ─── MANDATORY PRE-FLIGHT CHECK ───
+        readiness = db.get_user_readiness(user_id)
+
+        if not readiness["can_trade"]:
+            text = Messages.setup_checklist(readiness)
             await query.edit_message_text(
-                "❌ **No AI Provider configured!**\n\n"
-                "Please set up your AI provider first:\n"
-                "1️⃣ Go to 🤖 AI Settings\n"
-                "2️⃣ Tap 🔑 AI Provider & API Key\n"
-                "3️⃣ Select a provider and enter your API key",
-                reply_markup=Keyboards.back_button("menu_ai"),
+                text,
+                reply_markup=Keyboards.back_button("menu_trade"),
                 parse_mode="Markdown",
             )
             return
+
+        # ─── WARNINGS BASED ON TRADING MODE ───
+        trading_mode = readiness.get("trading_mode", "simulation")
+        if trading_mode == "real":
+            # Extra warning for real money
+            if self.mt5 and self.mt5.simulation:
+                await query.edit_message_text(
+                    "🚨 **REAL TRADING NOT AVAILABLE**\n\n"
+                    "You selected REAL MONEY mode, but the bot is running in SIMULATION.\n\n"
+                    "💡 This server (Linux VPS) cannot connect to MetaTrader 5 directly.\n"
+                    "To trade with real money, you need:\n"
+                    "1️⃣ A Windows server with MT5 running, OR\n"
+                    "2️⃣ Use MetaAPI.cloud for remote MT5 connection, OR\n"
+                    "3️⃣ Run the bot on your local Windows machine\n\n"
+                    "Switch to 🟡 SIMULATION mode to continue testing.",
+                    reply_markup=Keyboards.back_button("menu_trade"),
+                    parse_mode="Markdown",
+                )
+                return
 
         if not self.analyzer or not self.executor:
             await query.edit_message_text(
@@ -1058,12 +1128,18 @@ class TelegramBot:
 
         await query.answer("✅ Auto trading started")
 
-        # Run first cycle immediately using background scheduler logic
-        # (avoids blocking the UI with a full analysis cycle here)
+        # Build status message based on mode
+        mode_emoji = {"real": "🔴", "demo": "🔵", "simulation": "🟡"}.get(trading_mode, "🟡")
+        mode_label = {"real": "REAL MONEY", "demo": "DEMO", "simulation": "SIMULATION"}.get(trading_mode, "SIMULATION")
+
         await query.edit_message_text(
-            "🚀 Auto trading is now active!\n\n"
-            "The bot will analyze and trade automatically every 5 minutes.\n"
-            "You can pause anytime with the 🛑 Pause button.",
+            f"🚀 Auto trading is now active!\n\n"
+            f"{mode_emoji} **Mode:** {mode_label}\n"
+            f"🏆 **Asset:** {readiness.get('symbol', 'XAUUSD')}\n"
+            f"📦 **Lot:** {readiness.get('lot', '0.01')}\n"
+            f"🧠 **AI:** {readiness.get('ai_provider_name', 'AI').title()}\n\n"
+            f"The bot will analyze and trade automatically every 5 minutes.\n"
+            f"You can pause anytime with the 🛑 Pause button.",
             reply_markup=Keyboards.main_dashboard(),
             parse_mode="Markdown",
         )
@@ -1297,6 +1373,169 @@ class TelegramBot:
         db.update_ai_config(user_id, news_guard_enabled=new_val)
         await query.answer(f"🛡️ NewsGuard: {'Enabled' if new_val else 'Disabled'}")
         await self._show_ai_config(query, user_id)
+
+    # ─── MT5 & Trading Mode Helpers ───────────────
+
+    async def _show_mt5_settings(self, query, user_id: int):
+        """Show MT5 account settings"""
+        db = get_db()
+        mt5_creds = db.get_mt5_credentials(user_id)
+        trading_mode = db.get_setting(user_id, "trading_mode", "simulation")
+        has_creds = bool(mt5_creds.get("login") and mt5_creds.get("password"))
+
+        text = Messages.mt5_settings(mt5_creds, trading_mode)
+        await query.edit_message_text(
+            text,
+            reply_markup=Keyboards.mt5_settings_menu(has_creds=has_creds),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_mt5_test(self, query, user_id: int):
+        """Test MT5 connection with stored credentials"""
+        db = get_db()
+        creds = db.get_mt5_credentials(user_id)
+
+        if not all([creds["login"], creds["password"], creds["server"]]):
+            await query.edit_message_text(
+                "❌ MT5 credentials incomplete. Please set login, password, and server first.",
+                reply_markup=Keyboards.back_button("mt5_settings"),
+            )
+            return
+
+        await query.edit_message_text(
+            "⏳ Testing MT5 connection...",
+            reply_markup=Keyboards.back_button("mt5_settings"),
+        )
+
+        try:
+            success, msg = self.mt5.reconnect_with_credentials(
+                login=int(creds["login"]),
+                password=creds["password"],
+                server=creds["server"],
+            )
+            await query.edit_message_text(
+                msg,
+                reply_markup=Keyboards.back_button("mt5_settings"),
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            await query.edit_message_text(
+                f"❌ Connection test error: {e}",
+                reply_markup=Keyboards.back_button("mt5_settings"),
+            )
+
+    async def _handle_mt5_clear(self, query, user_id: int):
+        """Clear MT5 credentials"""
+        db = get_db()
+        db.store_mt5_credentials(user_id, login="", password="", server="")
+        await query.answer("🗑️ MT5 credentials cleared")
+        await self._show_mt5_settings(query, user_id)
+
+    async def _handle_mt5_login_input(self, update, context, user_id: int, text: str):
+        """Handle MT5 login input"""
+        db = get_db()
+        try:
+            login = int(text.strip())
+            db.store_mt5_credentials(user_id, login=str(login))
+            context.user_data["awaiting_mt5_login"] = False
+            await update.message.reply_text(
+                f"✅ MT5 Login set: `{login}`\n\nNow set your password and server in 🔧 MT5 Account.",
+                reply_markup=Keyboards.back_button("mt5_settings"),
+                parse_mode="Markdown",
+            )
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Please enter a valid numeric login ID.",
+                reply_markup=Keyboards.back_button("mt5_settings"),
+            )
+
+    async def _handle_mt5_password_input(self, update, context, user_id: int, text: str):
+        """Handle MT5 password input"""
+        db = get_db()
+        db.store_mt5_credentials(user_id, password=text.strip())
+        context.user_data["awaiting_mt5_password"] = False
+        await update.message.reply_text(
+            "🔒 MT5 Password saved (AES-256 encrypted).\n\nGo to 🔧 MT5 Account to test the connection.",
+            reply_markup=Keyboards.back_button("mt5_settings"),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_mt5_server_input(self, update, context, user_id: int, text: str):
+        """Handle MT5 server input"""
+        db = get_db()
+        db.store_mt5_credentials(user_id, server=text.strip())
+        context.user_data["awaiting_mt5_server"] = False
+        await update.message.reply_text(
+            f"✅ MT5 Server set: `{text.strip()}`\n\nGo to 🔧 MT5 Account to test the connection.",
+            reply_markup=Keyboards.back_button("mt5_settings"),
+            parse_mode="Markdown",
+        )
+
+    async def _show_trading_mode(self, query, user_id: int):
+        """Show trading mode selection"""
+        db = get_db()
+        current_mode = db.get_setting(user_id, "trading_mode", "simulation")
+        await query.edit_message_text(
+            "🎮 **Select Trading Mode**\n\n"
+            "🔴 **REAL** — Live trades with real money (requires MT5)\n"
+            "🔵 **DEMO** — Practice with virtual money (requires MT5)\n"
+            "🟡 **SIMULATION** — No MT5 needed, fake prices & trades\n\n"
+            "💡 **Recommendation:** Start with SIMULATION, then DEMO, then REAL.",
+            reply_markup=Keyboards.trading_mode_select(current_mode),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_trading_mode_select(self, query, user_id: int, data: str, context: ContextTypes.DEFAULT_TYPE):
+        """Handle trading mode selection"""
+        db = get_db()
+        mode = data.replace("mode_", "")
+        current_mode = db.get_setting(user_id, "trading_mode", "simulation")
+
+        if mode == current_mode:
+            await query.answer(f"Already in {mode.upper()} mode")
+            await self._show_trading_mode(query, user_id)
+            return
+
+        if mode == "real":
+            # Show big warning first
+            await query.edit_message_text(
+                Messages.real_trading_warning(),
+                reply_markup=Keyboards.confirm_real_trading(),
+                parse_mode="Markdown",
+            )
+            return
+
+        db.set_setting(user_id, "trading_mode", mode)
+        await query.answer(f"✅ Mode: {mode.upper()}")
+        await self._show_trading_mode(query, user_id)
+
+    async def _handle_confirm_real(self, query, user_id: int):
+        """Confirm enabling real trading"""
+        db = get_db()
+        db.set_setting(user_id, "trading_mode", "real")
+        await query.answer("🔴 REAL MONEY mode enabled!")
+        await query.edit_message_text(
+            "🔴 **REAL MONEY TRADING ENABLED**\n\n"
+            "⚠️ **You are now trading with REAL MONEY.**\n\n"
+            "• Stop Loss is MANDATORY and enforced\n"
+            "• Max daily loss limit is active\n"
+            "• Use 🛑 Pause anytime to stop trading\n"
+            "• 🚨 Panic button closes ALL positions instantly\n\n"
+            "Make sure your MT5 account is connected before starting auto-trading.",
+            reply_markup=Keyboards.back_button("menu_trade"),
+            parse_mode="Markdown",
+        )
+
+    async def _handle_ready_check(self, query, user_id: int):
+        """Show readiness checklist"""
+        db = get_db()
+        readiness = db.get_user_readiness(user_id)
+        text = Messages.setup_checklist(readiness)
+        await query.edit_message_text(
+            text,
+            reply_markup=Keyboards.back_button("menu_trade"),
+            parse_mode="Markdown",
+        )
 
     # ─── Backtest Helpers ─────────────────────────
 

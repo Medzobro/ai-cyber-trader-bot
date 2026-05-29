@@ -5,7 +5,6 @@ Manages MT5 connection and executes trading operations
 """
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime
-import pandas as pd
 
 from config import config
 from utils.logger import get_logger
@@ -79,6 +78,54 @@ class MT5Bridge:
             self.connected = True
             self.account_info = self._simulate_account_info()
             return True  # Fallback to simulation
+
+    def reconnect_with_credentials(self, login: int, password: str,
+                                   server: str) -> Tuple[bool, str]:
+        """
+        Reconnect with new per-user credentials.
+        Returns success flag and status message.
+        """
+        if self.simulation and not MT5_AVAILABLE:
+            return False, (
+                "🟡 Cannot connect to real MT5 on this server.\n"
+                "MetaTrader5 library is not available (Linux VPS).\n\n"
+                "💡 To trade with real money, you need:\n"
+                "• A Windows server with MT5 installed, OR\n"
+                "• Wine + MT5 on Linux, OR\n"
+                "• A MetaAPI.cloud account (remote MT5 bridge)"
+            )
+
+        # Disconnect current session if any
+        if self.connected and not self.simulation:
+            try:
+                mt5_lib.shutdown()
+            except Exception:
+                pass
+
+        self.simulation = False
+        self.connected = False
+
+        try:
+            if not mt5_lib.initialize(login=login, password=password, server=server):
+                error = mt5_lib.last_error()
+                return False, f"❌ MT5 connection failed: {error}"
+
+            self.connected = True
+            self.account_info = self._get_real_account_info()
+            info = self.account_info
+            mode = "🟢 REAL" if info.get("login", 0) > 0 else "🔵 DEMO"
+            return True, (
+                f"✅ MT5 Connected!\n\n"
+                f"{mode} Account: {info.get('login')}\n"
+                f"Server: {info.get('server')}\n"
+                f"Balance: ${info.get('balance', 0):,.2f}\n"
+                f"Equity: ${info.get('equity', 0):,.2f}"
+            )
+        except Exception as e:
+            self.simulation = True
+            self.connected = True
+            self.account_info = self._simulate_account_info()
+            return False, f"❌ MT5 error: {e}"
 
     def disconnect(self):
         """Disconnect from MT5"""
